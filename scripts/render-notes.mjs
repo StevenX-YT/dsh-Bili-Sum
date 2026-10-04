@@ -12,7 +12,9 @@
 //   "out": "video-digest.html",            // 可选，输出文件名
 //   "warn": "阅读提示（敏感争议内容必填）",   // 可选
 //   "summary": ["段1（内嵌 [MM:SS]）", "段2"],
-//   "highlights": [{"emoji":"🎯","title":"短标题","ts":"00:00","quote":"逐字原话"}],   // ≥10
+//   "highlights": [{"emoji":"🎯","title":"短标题","ts":"00:00","quote":"逐字原话"}],   // 条数按 OUTPUT-STANDARDS §2.2（时长档区间+密度条款触顶1.2×+稀疏压缩）
+//   "highlightsTitle": "关键点",        // 可选，要点区块自定义名（digest 默认「关键点」、share 默认「时间线亮点」；允许跨模板重名，Q4）
+//   "timeline": [{"ts":"00:10","text":"事件","frame":"kf_002.png"}],  // share 时间线；info 兼容 t/e 字段名；frame=行内画面缩略图（Q5，点击放大）
 //   "tags": ["#标签"],
 //   "qa": [{"q":"问题","ts":"00:00","src":"视频中提到","ext":"延伸思考"}],             // ≥3
 //   "terms": [{"t":"术语","d":"一句话定义","ts":"00:00"}],
@@ -35,6 +37,8 @@ const tsBadge = (ts) => {
   const bare = String(ts ?? '').replace(/[[\]]/g, '').trim();
   return bare ? `<span class="ts">[${bare}]</span>` : '';
 };
+// Q5 时间锚点统一规范：真时间戳（MM:SS / H:MM:SS）→ 可点 .ts 徽章；日期等其他文本保持原样不冒充
+const tsOrText = (v) => (/^\[?\d{1,2}:\d{2}(:\d{2})?\]?/.test(String(v ?? '')) ? tsBadge(v) : esc(String(v ?? '—')));
 const wan = (n) => (Number(n) >= 10000 ? (Number(n) / 10000).toFixed(1).replace(/\.0$/, '') + '万' : String(n ?? '—'));
 
 // 转录行索引（[MM:SS] text）：供自动配图标注取就近文本
@@ -306,6 +310,7 @@ export async function renderNotes(dirArg, { noStream = false, autoFrames = false
         return `  <div class="card">
     <div class="hd">步骤${esc(s.no ?? '')}｜${esc(s.title || '')} ${tsBadge(s.ts)}</div>
     ${s.op ? `<div class="op">${esc(s.op)}</div>` : ''}
+    ${s.frame ? `<div><img src="${esc(basename(s.frame))}" loading="lazy" alt="" style="width:min(440px,100%);display:block;border:1px solid var(--line);border-radius:6px;cursor:zoom-in"></div>` : ''}
     ${s.purpose ? `<div class="row"><b class="k">目的</b>${esc(s.purpose)}</div>` : ''}
     <div class="row"><b class="k">验证</b>${esc(s.verify)}</div>
     ${s.tip ? `<div class="tip">⚠ 视频提示：${esc(s.tip)}</div>` : ''}
@@ -333,13 +338,13 @@ export async function renderNotes(dirArg, { noStream = false, autoFrames = false
         '{{DATE}}': new Date().toISOString().slice(0, 10),
       };
     } else if (template === 'share') {
-      const tlRows = (content.timeline || []).map((t) => `    <tr><td>${tsBadge(t.ts)}</td><td>${esc(t.text)}</td></tr>`).join('\n');
+      const tlRows = (content.timeline || []).map((t) => `    <tr><td>${tsOrText(t.ts)}</td><td>${esc(t.text)}${t.frame ? ` <img src="${esc(basename(t.frame))}" loading="lazy" alt="" style="width:96px;display:inline-block;vertical-align:middle;border:1px solid var(--line);border-radius:4px;cursor:zoom-in;margin:2px 0 0 6px">` : ''}</td></tr>`).join('\n');
       const quoteBlocks = (content.quotes || []).map((q) => `  <div class="quote">${tsBadge(q.ts)}「${esc(q.text)}」</div>`).join('\n');
       const usefulRows = (content.useful || []).map((u) => `    <tr><td><b>${esc(u.label)}</b></td><td>${esc(u.value)}${u.ts ? ' ' + tsBadge(u.ts) : ''}</td></tr>`).join('\n');
       tokens = {
         '{{TITLE}}': esc(v.title || v.bvid), '{{META}}': metaStr,
         '{{TLDR}}': content.tldr ? esc(content.tldr) : '—',
-        '{{TIMELINE_BLOCK}}': tlRows ? `  <h2>时间线亮点</h2>\n  <table>\n    <tr><th>时间</th><th>事件</th></tr>\n${tlRows}\n  </table>` : '',
+        '{{TIMELINE_BLOCK}}': tlRows ? `  <h2>${esc(String(content.highlightsTitle || '时间线亮点'))}</h2>\n  <table>\n    <tr><th>时间</th><th>事件</th></tr>\n${tlRows}\n  </table>` : '',
         '{{QUOTES_BLOCK}}': quoteBlocks ? `  <h2>语录摘录</h2>\n${quoteBlocks}` : '',
         '{{USEFUL_BLOCK}}': usefulRows ? `  <h2>有用信息</h2>\n  <table>\n    <tr><th>项目</th><th>内容</th></tr>\n${usefulRows}\n  </table>` : '',
         '{{DM_BLOCK}}': dmBlock,
@@ -351,7 +356,7 @@ export async function renderNotes(dirArg, { noStream = false, autoFrames = false
     } else { // info
       const wh = content.wh || {};
       const dataCells = (content.data || []).map((d) => `    <div class="cell"><div class="k">${esc(d.k)}</div><div class="v">${esc(d.v)}${d.ts ? ' ' + tsBadge(d.ts) : ''}</div></div>`).join('\n');
-      const tlRows = (content.timeline || []).map((t) => `    <tr><td>${esc(t.t)}</td><td>${esc(t.e)}</td></tr>`).join('\n');
+      const tlRows = (content.timeline || []).map((t) => `    <tr><td>${tsOrText(t.ts ?? t.t)}</td><td>${esc(t.e ?? t.text)}${t.frame ? ` <img src="${esc(basename(t.frame))}" loading="lazy" alt="" style="width:96px;display:inline-block;vertical-align:middle;border:1px solid var(--line);border-radius:4px;cursor:zoom-in;margin:2px 0 0 6px">` : ''}</td></tr>`).join('\n');
       const reactRows = (content.react || []).map((r) => `    <tr><td><b>${esc(r.side)}</b></td><td>${esc(r.text)}</td></tr>`).join('\n');
       tokens = {
         '{{TITLE}}': esc(v.title || v.bvid), '{{META}}': metaStr,
@@ -409,7 +414,9 @@ export async function renderNotes(dirArg, { noStream = false, autoFrames = false
   const chainBlock = chainRows
     ? `  <h2>论证链</h2>\n  <table>\n    <tr><th>角色</th><th>内容</th></tr>\n${chainRows}\n  </table>\n`
     : '';
-  const highlightsBlock = chainRows ? '' : `  <h2>亮点</h2>\n  <ul class="hl">\n${highlights}\n  </ul>`;
+  // Q4 区块命名模板化：digest 要点区默认名「关键点」，content.highlightsTitle 可自定义（允许跨模板重名）
+  const hlTitle = String(content.highlightsTitle || '关键点');
+  const highlightsBlock = chainRows ? '' : `  <h2>${esc(hlTitle)}</h2>\n  <ul class="hl">\n${highlights}\n  </ul>`;
   // F2：内容驱动区块 token 化——空则整块消失（含 h2），不硬凑占位
   const tags = (content.tags || []).length
     ? `  <h2>标签</h2>\n  <div class="tags">\n${content.tags.map((t) => `<span>${esc(t)}</span>`).join('')}\n  </div>`

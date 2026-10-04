@@ -31,7 +31,8 @@ let pidAlive = null;
 if (st?.pid) { try { process.kill(st.pid, 0); pidAlive = true; } catch { pidAlive = false; } }
 
 let bundleInfo = null;
-if (existsSync(bundlePath)) {
+const bundleExists = existsSync(bundlePath);
+if (bundleExists) {
   const s = await stat(bundlePath);
   let b = null;
   try { b = JSON.parse(await readFile(bundlePath, 'utf8')); } catch { /* ignore */ }
@@ -46,14 +47,35 @@ if (existsSync(bundlePath)) {
     fileMtime: s.mtime.toISOString(),
   };
 }
+
+// 终态判定：显式 state（子进程回写）优先；旧任务无 state 时用「新鲜 bundle + pid」推断
+// bundle.json 在分析尾段落盘，其存在≈完成（brief/清理仅毫秒级窗口）；
+// 必须比对 bundle.mtime 与任务 startedAt——同一目录重跑时旧 bundle 会造成假完成；
+// pidAlive 单独看会把已完成误判为死亡（勿用）。
+const startedMs = st?.startedAt ? Date.parse(st.startedAt) : null;
+const bundleFresh = !!(bundleExists && startedMs && Date.parse(bundleInfo.fileMtime) >= startedMs - 10000);
+let state = st?.state || null;
+let stateSource = st?.state ? 'explicit' : 'inferred';
+if (!state) {
+  if (bundleFresh) state = 'completed';
+  else if (pidAlive) state = 'running';
+  else if (st) state = 'failed';
+  else state = 'no-bg-task';
+}
+
 let logTail = '';
 if (existsSync(logPath)) {
   const txt = await readFile(logPath, 'utf8');
   logTail = txt.slice(-1200);
 }
 console.log(JSON.stringify({
-  dirName, workDir,
-  bgTask: st ? { pid: st.pid, pidAlive, startedAt: st.startedAt, durationSec: st.durationSec } : null,
+  dirName, workDir, state, stateSource,
+  bgTask: st ? {
+    pid: st.pid, pidAlive, startedAt: st.startedAt, durationSec: st.durationSec,
+    ...(st.state ? { state: st.state } : {}),
+    ...(st.completedAt ? { completedAt: st.completedAt, wallSec: st.wallSec ?? null } : {}),
+    ...(st.failedAt ? { failedAt: st.failedAt, error: st.error ?? null } : {}),
+  } : null,
   bundle: bundleInfo,
   logTail,
 }, null, 2));

@@ -221,7 +221,12 @@
     '#tsFloat .rs::before{content:"";position:absolute;right:-8px;bottom:-8px;width:44px;height:44px}',
     '#tsFloat .rs:hover{filter:brightness(1.25)}',
     '#tsFloat.dragging, #tsFloat.dragging *{user-select:none !important}',
-    '@media (max-width:720px){details.tsGal .strip figure{flex-basis:86vw}#tsFloat{right:8px;bottom:8px}}'
+    '@media (max-width:720px){details.tsGal .strip figure{flex-basis:86vw}#tsFloat{right:8px;bottom:8px}}',
+    // Q5 图片点击放大：光标承诺必须兑现（框架表缩略图/配图区/画廊图/时间线帧/步骤截图统一 lightbox）
+    '#tsGalZoom{position:fixed;inset:0;z-index:100000;background:rgba(12,15,19,.93);display:none;align-items:center;justify-content:center;cursor:zoom-out}',
+    '#tsGalZoom.on{display:flex}',
+    '#tsGalZoom img{width:96vw;height:auto;max-height:91vh;object-fit:contain;border-radius:8px;box-shadow:0 10px 48px rgba(0,0,0,.55);background:#fff}',
+    '#tsGalZoom .zhint{position:fixed;bottom:16px;left:0;right:0;text-align:center;color:#c9d2db;font-size:12px;pointer-events:none}'
   ].join('\n');
 
   // ---------- 当前时间（「B站全页」按钮跳转用） ----------
@@ -597,12 +602,53 @@
     return d;
   }
 
+  // ---------- 图片点击放大（Q5：光标承诺必须兑现）----------
+  function ensureZoom(doc) {
+    if (doc.getElementById('tsGalZoom')) return;
+    var ov = doc.createElement('div');
+    ov.id = 'tsGalZoom';
+    var im = doc.createElement('img');
+    im.alt = '';
+    var hint = doc.createElement('div');
+    hint.className = 'zhint';
+    hint.textContent = '点击任意处或按 ESC 关闭';
+    ov.appendChild(im);
+    ov.appendChild(hint);
+    doc.body.appendChild(ov);
+    ov.addEventListener('click', function () { ov.classList.remove('on'); });
+    doc.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') ov.classList.remove('on');
+    });
+  }
+  function zoomTo(img) {
+    var ov = (img.ownerDocument || document).getElementById('tsGalZoom');
+    if (!ov) return;
+    var target = ov.querySelector('img');
+    target.src = img.src;
+    target.alt = img.alt || '';
+    ov.classList.add('on');
+  }
+
   function main() {
     var doc = document;
     ensureStyle(doc);
     var preAll = doc.getElementById('transcript');
     LINES = preAll ? parseTranscriptText(preAll.textContent) : [];
     ensureFloatPlayer(doc);
+    ensureZoom(doc);
+
+    // 图片点击放大：正文一切配图（框架表缩略图/配图区/画廊/时间线帧/步骤截图）统一 lightbox
+    // preventDefault：画廊图被包在 <a target=_blank> 里（v3.4 老设计=新标签开原图），不阻止则默认跳转压过放大
+    doc.addEventListener('click', function (ev) {
+      var t = ev.target;
+      var img = (t && t.closest) ? t.closest('img') : null;
+      if (!img || !img.src) return;
+      if (img.closest && img.closest('#tsFloat')) return;
+      if (img.closest && img.closest('#tsGalZoom')) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      zoomTo(img);
+    }, false);
 
     // 点击 .ts-jump：左键 → 小窗播放；右键/中键/修饰键 → 浏览器默认
     doc.addEventListener('click', function (ev) {
@@ -662,6 +708,40 @@
         el.insertAdjacentElement('afterend', g);
       }
     });
+
+    // Q6 挂载点扩展（模板原有行为一律不动；仅三处：share「语录摘录」、lecture「知识点精讲」卡与「例题精解」卡）
+    // 判别依据 = 元素所在区块最近的前置 <h2> 标题——防止误挂到 digest 要点区（v1 已管）、tutorial 步骤卡、lecture 老师总结、share 时间线等
+    function sectionTitle(el) {
+      var node = el;
+      while (node) {
+        if (node.tagName === 'H2') return (node.textContent || '').trim();
+        node = node.previousElementSibling;
+      }
+      return '';
+    }
+    var extra = doc.querySelectorAll('.quote, .card');
+    Array.prototype.forEach.call(extra, function (el) {
+      if (el.dataset.tsgal) return;
+      if (el.closest && el.closest('details.tsGal')) return;
+      var sec = sectionTitle(el);
+      if (!galleryAnchorAllowed(sec, el.className)) return;
+      var badge = el.querySelector('.ts');
+      if (!badge) return;
+      var range = parseBadge(badge.textContent);
+      if (!range) return;
+      el.dataset.tsgal = '1';
+      var g2 = buildGallery(doc, range, DATA.frames, lines);
+      if (!g2) return;
+      el.insertAdjacentElement('afterend', g2);
+    });
+  }
+
+  // 画廊挂载点白名单（纯函数，node 可单测；Q6 拍板范围：share 语录摘录 / lecture 知识点精讲·例题精解）
+  function galleryAnchorAllowed(sectionTitle, className) {
+    var sec = String(sectionTitle || '');
+    if (className === 'quote') return sec.indexOf('语录摘录') === 0;
+    if (className === 'card') return sec.indexOf('知识点精讲') === 0 || sec.indexOf('例题精解') === 0;
+    return false;
   }
 
   // 纯函数导出（node 单元测试）
@@ -670,7 +750,7 @@
       toSec: toSec, parseBadge: parseBadge, parseTranscriptText: parseTranscriptText,
       pickFrames: pickFrames, captionFor: captionFor, fmt: fmt,
       jumpUrl: jumpUrl, embedUrl: embedUrl,
-      qualityLabel: qualityLabel,
+      qualityLabel: qualityLabel, galleryAnchorAllowed: galleryAnchorAllowed,
       setVideo: function (v) { DATA.video = v; },
       setStream: function (s) { DATA.stream = s; },
     };

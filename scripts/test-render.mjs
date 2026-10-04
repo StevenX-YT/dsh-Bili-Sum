@@ -49,6 +49,7 @@ try {
   ok(html.includes('测试视频标题') && html.includes('BVTEST00001'), '元数据来自 bundle');
   ok(html.includes('测试提示'), 'warn 区块渲染');
   ok(html.includes('原话'), '亮点渲染');
+  ok(html.includes('<h2>关键点</h2>'), 'digest 要点区默认名=关键点（Q4 命名模板化）');
   ok(!html.includes('配图（关键帧）'), '默认不出配图区（Q9① 内容驱动）');
   ok(html.includes('第一句转录'), '转录附录渲染');
   ok(r.stream === false, 'no-stream 模式直链为 null');
@@ -59,6 +60,16 @@ try {
   ok(r2.frames >= 1 && r2.frames <= 6, 'autoFrames 显式开启时自动选帧', `frames=${r2.frames}`);
   const html2 = await readFile(r2.out, 'utf8');
   ok(html2.includes('配图（关键帧）'), 'autoFrames 时配图区出现');
+
+  // Q4：区块命名模板化——content.highlightsTitle 覆盖 digest 默认名
+  const cj = JSON.parse(await readFile(join(dir, 'content.json'), 'utf8'));
+  cj.highlightsTitle = '我的要点卡';
+  await writeFile(join(dir, 'content.json'), JSON.stringify(cj));
+  const r3 = await renderNotes(dir, { noStream: true });
+  const html3 = await readFile(r3.out, 'utf8');
+  ok(html3.includes('<h2>我的要点卡</h2>') && !html3.includes('<h2>关键点</h2>'), 'highlightsTitle 覆盖 digest 默认名');
+  delete cj.highlightsTitle;
+  await writeFile(join(dir, 'content.json'), JSON.stringify(cj));
 
   // prefillChapters 纯函数（Q11③）——样例模拟真实语音节奏：连续句+偶发停顿
   const lines = [
@@ -159,6 +170,35 @@ try {
   const ri = await renderNotes(dir, { noStream: true, template: 'info' });
   const hi = await readFile(ri.out, 'utf8');
   ok(ri.template === 'info' && hi.includes('一句话快讯') && hi.includes('5W1H') && hi.includes('停火谈判') && hi.includes('关键数据') && hi.includes('各方反应') && hi.includes('背景一页'), 'info 渲染');
+
+  // ---- Q5：时间锚点统一 + 帧利用 + 图片点击放大（插件功能完善）----
+  ok(html.includes('tsGalZoom'), '图片点击放大运行时已注入（Q5）');
+  ok(hi.includes('6月17日') && !hi.includes('<span class="ts">[6月17日]</span>'), 'info 日期列不冒充时间戳（Q5）');
+  await writeFile(join(dir, 'content.json'), JSON.stringify({ ...base, out: 'info-q5.html',
+    flash: 'f', wh: { when: '10月1日', where: '全国', who: '政策', what: '贴息', why: '稳楼市', how: '1个百分点' },
+    timeline: [{ t: '00:01', e: '事件甲' }, { ts: '00:30', text: '事件乙', frame: 'kf_002.png' }],
+  }));
+  const ri5 = await renderNotes(dir, { noStream: true, template: 'info' });
+  const hi5 = await readFile(ri5.out, 'utf8');
+  ok(hi5.includes('<span class="ts">[00:01]</span>'), 'info 时间戳渲染为可点徽章（Q5 修复）');
+  ok(hi5.includes('kf_002.png'), 'info 时间线行内帧（Q5）');
+  await writeFile(join(dir, 'content.json'), JSON.stringify({ ...base, out: 'share-q5.html',
+    tldr: 'x', timeline: [{ ts: '00:10', text: '事件', frame: 'kf_003.png' }],
+  }));
+  const rs5 = await renderNotes(dir, { noStream: true, template: 'share' });
+  ok((await readFile(rs5.out, 'utf8')).includes('kf_003.png'), 'share 时间线行内帧（Q5）');
+  await writeFile(join(dir, 'content.json'), JSON.stringify({ ...base, out: 'tutorial-q5.html',
+    steps: [{ no: 1, title: '装环境', op: '点安装', verify: '出现版本号', frame: 'kf_004.png' }],
+  }));
+  const rt5 = await renderNotes(dir, { noStream: true, template: 'tutorial' });
+  ok((await readFile(rt5.out, 'utf8')).includes('kf_004.png'), 'tutorial 步骤截图（Q5）');
+
+  // ---- Q6：画廊挂载点扩展 + lightbox 放大尺寸 ----
+  // 说明：画廊 <details> 元素由运行时在浏览器端动态创建，服务端 HTML 不含该元素——
+  // 挂载点判定已抽为纯函数 galleryAnchorAllowed（单测见 test-tsgal-v2）；
+  // 此处仅验证：①lightbox 放大尺寸 CSS 已修 ②运行时携带 Q6 白名单代码。
+  ok(html.includes('width:96vw'), 'lightbox 放大尺寸修复（Q6）');
+  ok(html.includes('知识点精讲') && html.includes('例题精解') && html.includes('语录摘录'), 'Q6 挂载白名单已随运行时注入（判定逻辑单测见 test-tsgal-v2）');
 } finally {
   await rm(dir, { recursive: true, force: true }).catch(() => {});
 }

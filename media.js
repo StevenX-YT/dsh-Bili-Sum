@@ -862,7 +862,8 @@ export async function analyzeBg(input, opts = {}) {
   const fh = await open(logPath, 'w');
   let child;
   try {
-    child = spawn(process.execPath, args, { cwd: __dirname, detached: true, stdio: ['ignore', fh.fd, fh.fd], windowsHide: true });
+    // BILI_BG_STATUS：子进程完成后把终态（completed/failed+时间戳）回写此文件——analyze-status 据此判定终态
+    child = spawn(process.execPath, args, { cwd: __dirname, detached: true, stdio: ['ignore', fh.fd, fh.fd], windowsHide: true, env: { ...process.env, BILI_BG_STATUS: statusPath } });
   } catch (e) {
     await fh.close();
     throw new Error(`后台任务启动失败：${e.message}`);

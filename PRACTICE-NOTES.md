@@ -14,13 +14,15 @@
 | 老布局兼容 | 不设 `BILI_DATA_ROOT` 时数据回退代码同目录（源码直跑照旧）；cookie 双候选自动回退 |
 | 新踩坑 | ① Silero VAD 模型在 `ggml-org/whisper-vad` 仓库（旧 ggerganov 路径全 404）② dl.mjs 错误路径禁用硬 `process.exit`（libuv 断言崩溃+输出丢失）③ ps1 脚本跑前必须先 `Set-ExecutionPolicy -Scope Process Bypass -Force` |
 
+**折叠画廊挂载点（Q6）**：v1=digest 要点区（li）等；Q6 扩展仅三处——**share 语录摘录后、lecture 知识点精讲卡后与例题精解卡后**；其余模板/区块（含 share 时间线、tutorial 步骤卡、lecture 老师总结与框架表）不挂，按用户拍板保持原样。lightbox 点击放大已修为铺满视口（小图放大到接近全屏）。
+
 ## 一、双模式作业法（2026-10-03 渲染器化整理）
 
 ### 模板速查（v2.1，五模板体系——区块规格以 OUTPUT-STANDARDS §4 为准）
 
 | 模板 | 骨架文件 | content 要点 | 硬保底 |
 |---|---|---|---|
-| 讲解/评论 digest | note-skeleton.html | thesis/chain/credibility 可选（C4）；框架=摘要+亮点或论证链+QA+术语+章节+归因 | 归因表（敏感必放） |
+| 讲解/评论 digest | note-skeleton.html | thesis/chain/credibility 可选（C4）；框架=摘要+关键点（默认名，`highlightsTitle` 可自定义，Q4）或论证链+QA+术语+章节+归因 | 归因表（敏感必放） |
 | 课程 lecture | note-skeleton-lecture.html | framework 可带 frame 缩略图（F1）；knowledge/examples/authorSummary/difficulty/signals/review | 例题 steps 缺失即报错 |
 | 教程 tutorial | note-skeleton-tutorial.html | task/quickPath/prereqCheck/steps/errors/tools/signals | 步骤 verify 缺失即报错 |
 | 分享 share | note-skeleton-share.html | tldr/timeline/quotes/useful/dm（轻量，Q&A/归因不适用） | — |
@@ -28,7 +30,7 @@
 
 **空区块纪律（F2）**：所有内容驱动区块 token 化——空则整块消失（含 h2），不硬凑「无」占位；有内容才出现。
 **例外（F2 批准时约定）**：课程难点地图的「无强证据」说明是**内容**不是占位——弹幕信号不构成难点证据时，照样写 difficulty 条目（evidence 字段说明「听不懂刷屏属开场调侃/无密集信号」等），照常渲染进表格；只有 difficulty 数组完全为空才整块消失。
-**配图纪律（F1/Q9）**：digest/share/info 内容驱动默认不出；lecture 框架表行写 frame 字段即出板书缩略图。
+**配图纪律（F1/Q9/Q5）**：digest 配图区内容驱动默认不出；**lecture 框架表行、share·info 时间线行、tutorial 步骤卡均可写 frame 字段出缩略图（点击放大，Q5）**；含界面/板书/演示的视频**必须**利用帧能力（恒定规则 §6.9）；时间戳一律渲染为可点 `.ts` 徽章（恒定规则 §6.8）。
 
 ### 判型规则（C期，Q8①——自动判断+回显+可覆盖）
 
@@ -58,8 +60,9 @@
 ```
 
 - 与旧流程对比：不逐帧 read_image、不手写 HTML 样板——兔娘视频实测交付链路由 ~9 分钟压缩到 ~3 分钟量级
+- **条数口诀（Q4）**：亮点/关键点条数=**时长档区间**（OUTPUT-STANDARDS §2.2 时长表）；密度极高→可列独立要点 ≥ 上限×**1.2** 才可突破（独立主张+独立时间戳+**同义必合并**）；稀疏→按实数写、缺的区块整块省略（F2）；命名按模板默认（digest=关键点/share=时间线亮点）或 `highlightsTitle` 指定
 - 直链限流时渲染器自动 iframe 回退；重跑一次 render-notes 即恢复原生小窗
-- 长视频（>30min）analyze 自动后台；查进度 `node scripts/analyze-status.mjs <BV>`
+- 长视频（>30min）analyze 自动后台；查进度 `node scripts/analyze-status.mjs <BV>`——输出含**终态 `state`：running / completed / failed**（子进程回写 completed/failed+时间戳；旧任务按「新鲜 bundle+pid」推断；**勿用 pidAlive 单独判断完成与否**）
 - 双进程阈值 360s（Q6①）：≥6 分钟视频自动启用（静音切点缺失自动回退单进程）
 
 ### 调试模式（联调功能/画质争议时用——保留旧全流程）
@@ -101,7 +104,7 @@
 ## 四、ASR 静默校正经验（实战样例）
 
 - 同音字：造黃搖→造黄谣 / 戰戰→转转 / 律師喊→律师函 / 慢展→漫展 / 网报→网暴 / 历史函→律师函 / 好奇→（一步）棋 / 大幕→弹幕 / 微根我→vivo没跟我 / 恰谈→洽谈 / 诚述→陈述
-- 繁体输出→简体：**v3.1.0 起源级内置**（zh-conv.js，转录落盘前转简；medium 场景 A/B 实测）；表外生僻字仍按本节纪律在渲染侧静默校正
+- 繁体输出→简体：**源级内置**（zh-conv.js 现为 **OpenCC 全表生成 3221 对**，`scripts/gen-zhconv.mjs` 可再生；转录落盘前转简）；表外生僻字仍按本节纪律在渲染侧静默校正
 - **画面交叉校正**：视频里的硬字幕/聊天截图是最佳校对源（实战用 kf_009 截图确认"新机上市买不到的是真的"，纠正了"新机上是买不到是真的"）
 - 拿不准的断句：按上下文最小改动，不臆造（如"不再再用任何公众支援"→"不再通过任何公众平台"）
 
@@ -130,12 +133,13 @@
 ## 七、交付前检查清单
 
 - [ ] 元信息块无省略（缺失写"未提供"）
-- [ ] 亮点≥10条且引用逐字、时间戳齐全
+- [ ] 亮点/关键点条数符合**时长档区间**（密度条款触顶 1.2×；引用逐字、时间戳齐全；命名按模板默认或 `highlightsTitle` 指定）
 - [ ] Q&A 问题行带时间戳，回答区分"视频中提到/延伸思考"
 - [ ] 章节区间覆盖全片；广告位单独标注（如有）
 - [ ] 敏感内容：阅读提示 + 归因表四栏 + 对方立场明示
 - [ ] 配图≤6张、相对路径、竖屏帧网格 minmax(150px)
 - [ ] 弹幕精选四类合规、无攻击性放大
+- [ ] 含界面/板书/演示的内容已带帧（框架表/配图/时间线行/步骤按模板选位）；时间戳均为可点徽章（时间锚点规范 §6.8/6.9）
 - [ ] 折叠转录为简体+静默校正后文本
 - [ ] 注入成功（stream 或 iframe fallback 均可交付）
 - [ ] present 卡片交付（目录路径聊天里打不开）
@@ -146,6 +150,6 @@
 - 渲染骨架：`templates/note-skeleton.html`（token 版，渲染器的数据源；手工渲染参考）
 - 渲染规范：`templates/video-digest.md` / `lecture-notes.md` / `transcript-pretty.md`
 - 三期报告：`reports/2026-10-03-phase1-speedup-report.md` / `phase2` / `phase3-dual-whisper`
-- 回归测试：`node scripts\test-render.mjs`（渲染器13项）+ `test-tsgal-v2.mjs`（24项）+ `test-media-pure.mjs`（25项）
+- 回归测试：`node scripts\test-render.mjs`（渲染器 47 项，含 Q4 命名 2 + Q5 六项 + Q6 注入检查）+ `test-tsgal-v2.mjs`（31 项，含 Q6 画廊挂载白名单 7 项）+ `test-media-pure.mjs`（43 项）；或 `npm test` 串跑
 - 工具：`analyze-status.mjs`（后台进度）/ `check-cookie.mjs`（登录态）/ `vad-ab-compare.mjs` / `dual-compare.mjs` / `thread-bench-real.ps1`
 - 样例：`output/BV1YaeN6xEWR/content.json`（快速模式 content 完整样例）

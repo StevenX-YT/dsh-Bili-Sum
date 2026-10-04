@@ -12,7 +12,7 @@ import {
 import { transcribe, extractKeyframes, analyze, analyzeOrBackground, hostDiag } from './media.js';
 import { PKG_ROOT, DATA_ROOT, OUTPUT_DIR, TOOLS_DIR } from './paths.js';
 
-const SERVER_INFO = { name: 'bilibili', version: '3.1.1' };
+const SERVER_INFO = { name: 'bilibili', version: '3.2.0' };
 const DEBUG = !!process.env.MCP_DEBUG;
 
 function log(...args) {

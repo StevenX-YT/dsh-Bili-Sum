@@ -69,5 +69,14 @@ ok(eu.indexOf('high_quality=1') > 0, 'embed含high_quality');
 ok(eu.indexOf('as_wide=1') > 0, 'embed含as_wide');
 ok(eu.indexOf('autoplay=1') > 0 && eu.indexOf('t=100') > 0, 'embed含autoplay与t');
 
+console.log('== galleryAnchorAllowed（Q6 挂载点白名单）==');
+ok(T.galleryAnchorAllowed('知识点精讲', 'card') === true, 'lecture 知识点卡允许挂画廊');
+ok(T.galleryAnchorAllowed('例题精解', 'card') === true, 'lecture 例题卡允许挂画廊');
+ok(T.galleryAnchorAllowed('语录摘录', 'quote') === true, 'share 语录摘录允许挂画廊');
+ok(T.galleryAnchorAllowed('老师的总结（原话）', 'quote') === false, 'lecture 老师总结不挂（拍板范围外）');
+ok(T.galleryAnchorAllowed('分步操作卡', 'card') === false, 'tutorial 步骤卡不挂（拍板范围外）');
+ok(T.galleryAnchorAllowed('时间线亮点', 'quote') === false, 'share 时间线不挂（拍板范围外）');
+ok(T.galleryAnchorAllowed('', 'card') === false, '无区块标题不挂（判别失败安全兜底）');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
