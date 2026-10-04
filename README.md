@@ -1,6 +1,6 @@
 # dsh-Bili-Sum（B站视频理解流水线）
 
-> 当前版本：**v3.0.0**（版本历史见 `CHANGELOG.md`；内部组件 tsGal runtime v3.6 独立版本）
+> 当前版本：**v3.1.1**（版本历史见 `CHANGELOG.md`；内部组件 tsGal runtime v3.6 独立版本）
 > 许可证：Apache-2.0（见 `LICENSE`；第三方组件归属见 `NOTICE`）
 
 给 DeepSeek Harness 提供的 B 站数据 MCP 服务器：把「BV 号 → 视频元数据 / 弹幕 / 字幕 / 评论 / **语音转录 / 关键帧画面**」封装成标准 MCP 工具，并通过五套模板（讲解/课程/教程/分享/资讯）渲染成图文笔记。
@@ -14,6 +14,7 @@
 1. **自检**：`node scripts/doctor.mjs`（脚本位于 profile 的 `node_modules\dsh-bili-sum\scripts\`；也可让 agent 跑，`mcp__bilibili__status` 工具同样输出就绪状态与路径）
 2. **媒体工具链**：`scripts\setup-media.ps1` 下载 ffmpeg / whisper.cpp / 中文模型 / Silero VAD / yt-dlp（约 700MB，国内镜像；均不随仓库分发）
 3. **登录 Cookie（可选）**：见下文「配置登录 Cookie」
+4. **质量路线（可选）**：`ggml-medium.bin`（1.43GB）**不随安装与工具链自动下载**——仅质量档（`model=medium`）需要；要用时手动下载放数据根 `tools\models\`（`https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin`），`node scripts/doctor.mjs` 会显示就绪状态。缺失时 `model=medium` 自动回退 small 并在结果里显式记录 `modelFallback`，不会静默降级。
 
 **数据根**：运行时数据（`output/` 产物、`tools/` 工具链、`bin/`、`bili-cookie.txt`）默认在 `<dsh家目录>\bili-sum\`（Windows 通常 `%USERPROFILE%\.dsh\bili-sum`），由插件 patch 自动注入 `BILI_DATA_ROOT`——**与插件代码目录分离**，卸载/升级插件不影响数据。未设置该变量时（如直接跑仓库源码）数据回落到代码同目录（老布局兼容）。
 
