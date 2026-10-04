@@ -19,6 +19,7 @@
 
 - **卸载**：Harness 插件管理里移除 `dsh-bili-sum` bundle 即可；数据根目录可自行保留或删除
 - **node 不在 PATH 时**：给 MCP 连接设环境变量 `BILI_NODE_PATH=<node绝对路径>`（或在系统 PATH 里加入 node）
+- **安装失败排查**：报 `git: 'remote-https' is not a git command` → 本机 git 安装损坏，重装 Git for Windows（或确保 PATH 上有可用 git）；报 `ERR_PNPM_MISSING_TARBALL_INTEGRITY`（URL tarball 安装）→ 先下载再本地安装：`curl -L https://github.com/StevenX-YT/dsh-Bili-Sum/archive/refs/heads/main.tar.gz -o dsh-bili-sum.tar.gz`，然后 `target` 填该本地文件路径；装完自检 `node scripts/doctor.mjs`
 
 ## 免责与安全
 

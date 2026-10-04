@@ -24,3 +24,6 @@ HANDOFF.md
 reports/
 archive-subtitles/
 bilibili-mcp-backup*
+
+# local recovery backup (broken .git swap artifact)
+.git.broken-backup/

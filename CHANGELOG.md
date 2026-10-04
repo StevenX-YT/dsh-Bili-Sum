@@ -32,7 +32,7 @@
 - 三套回归 26+24+37 全绿；doctor 老布局/插件布局双测通过（插件布局 fresh 正确报缺+fix 指引）
 - 本地 path 安装实测：remove 旧 bundle → install_bundle → junction → `!!js` patch 挂载成功（MCP v3.0.0 启动，`dataRoot=~\.dsh\bili-sum`，`isolatedDataRoot=true`）→ analyze 33s（1:40 视频，VAD 生效）→ render 41.7KB → present 交付
 - 发布文件零本机路径：全库 grep，机器路径仅存在于 gitignore 排除的内部文档
-- P5（GitHub `github:` 一句安装实测）与 SESSDATA 终扫：发布后补记
+- P5 结果（2026-10-04）：仓库 **https://github.com/StevenX-YT/dsh-Bili-Sum**（public，main，作者 StevenX-YT）已发布；**「一句安装」验收通过**：`install_bundle` tarball spec → `application: applied` → MCP 从 `profile\node_modules\dsh-bili-sum`（发布包，非工作区）启动 v3.0.0，数据根/工具链/登录态全通；最终安装态全链路复验 analyze 39s→render 42.4KB（stream:true）→present；三套回归 87 项全绿；SESSDATA 真值与机器路径扫描双 0 命中。过程排障记录：①`github:` 简写受阻于本机宿主 PATH 指向的损坏 E:\Git（缺 git-remote-https.exe）——已装用户域 MinGit 2.56 修复会话环境，重启 Harness 后 host 侧生效；②pnpm 对 URL tarball 存可复现的缓存污染（MISSING_TARBALL_INTEGRITY），本地 tarball spec 为等效绕行（README 安装节已录排查法）；③残留 junction 挡 rename 用 `rmdir`（只删链接）清除
 
 ## [2.1.2] — 2026-10-04
 
