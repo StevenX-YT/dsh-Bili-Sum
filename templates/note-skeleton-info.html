@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 快报：{{TITLE}}</title>
+<!--
+  templates/note-skeleton-info.html — 资讯快报模板（token 版，OUTPUT-STANDARDS §4.5）
+  渲染器：node scripts/render-notes.mjs <目录> --template info
+  content.json schema（info）：
+  {
+    "out": "info-notes.html", "attr": "资讯速览（国际热点）",
+    "flash": "一句话快讯（谁/何时/发生了什么）",
+    "wh": {"when":"…","where":"…","who":"…","what":"…","why":"…","how":"…"},
+    "data": [{"k":"关键数据名","v":"数值","ts":"可选"}],
+    "timeline": [{"t":"时间点","e":"事件"}],
+    "react": [{"side":"官方|当事人|观众/网友","text":"…"}],
+    "background": "前情提要（可选，有则放）",
+    "dm": [{"cat":"刷屏|反驳|指引|神评","ts":"…","text":"…"}]
+  }
+-->
+<style>
+  :root { --blue:#0054a6; --ink:#1f2329; --muted:#667085; --line:#e3e5e8; --bg:#f7f8fa; }
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; color:var(--ink); background:var(--bg); margin:0; line-height:1.75; }
+  main { max-width:880px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { font-size:21px; line-height:1.5; margin:6px 0 14px; }
+  h2 { font-size:17px; margin:34px 0 10px; padding-left:9px; border-left:4px solid var(--blue); }
+  .meta { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 16px; font-size:13px; color:var(--muted); display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:4px 18px; }
+  .meta b { color:var(--ink); font-weight:600; }
+  .meta a { color:var(--blue); text-decoration:none; }
+  .attr { display:inline-block; background:#eaf3fd; color:var(--blue); border-radius:6px; padding:0 8px; font-size:12px; margin-left:6px; vertical-align:1px; }
+  .ts { display:inline-block; white-space:nowrap; background:var(--blue); color:#fff; border-radius:4px; padding:0 6px; font-size:12px; margin-right:6px; }
+  a.ts-jump { color:#fff; text-decoration:none; }
+  .flash { background:#fff; border:1px solid var(--line); border-left:4px solid #c2571f; border-radius:10px; padding:12px 16px; font-size:15px; font-weight:600; margin:10px 0; }
+  table { border-collapse:collapse; width:100%; background:#fff; font-size:13.5px; }
+  th,td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:#f0f4f9; font-weight:600; white-space:nowrap; }
+  .panel { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; margin:10px 0; }
+  .panel .cell { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .panel .cell .k { font-size:12px; color:var(--muted); }
+  .panel .cell .v { font-size:18px; font-weight:700; color:var(--blue); }
+  .bg { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:8px 0; font-size:14px; }
+  .dm { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:8px 0; font-size:13.5px; }
+  .dm .cat { color:#fff; background:#7c8798; border-radius:5px; font-size:11.5px; padding:0 7px; margin-right:8px; }
+  .dm .cat.refute { background:#c2571f; }
+  .dm .cat.god { background:#0054a6; }
+  .dm .cat.guide { background:#2e8b57; }
+  .note { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  details.full { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin-top:10px; }
+  details.full summary { cursor:pointer; color:var(--blue); font-size:13.5px; }
+  pre#transcript { white-space:pre-wrap; font-size:12.5px; line-height:1.9; color:#444; font-family:inherit; margin:10px 0 0; }
+  footer { margin-top:36px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:12px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="note">AI 快报（资讯）</div>
+  <h1>{{TITLE}}</h1>
+
+  <div class="meta">{{META}}</div>
+
+  <div class="flash">{{FLASH}}</div>
+
+  <h2>5W1H</h2>
+  <table>
+    <tr><th>When 何时</th><th>Where 何地</th><th>Who 何人</th></tr>
+{{WH_ROW1}}
+    <tr><th>What 何事</th><th>Why 为何</th><th>How 如何</th></tr>
+{{WH_ROW2}}
+  </table>
+
+{{DATA_BLOCK}}
+
+{{TIMELINE_BLOCK}}
+{{REACT_BLOCK}}
+{{BACKGROUND_BLOCK}}
+{{DM_BLOCK}}
+
+  <h2>附录</h2>
+  <details class="full">
+    <summary>完整转录（原始语音转录，正文已静默校正，本附录仅供对照）</summary>
+    <pre id="transcript">{{TRANSCRIPT}}</pre>
+  </details>
+
+  <footer>
+    生成：AI 快报流水线（analyze · route=balanced · whisper small+VAD · {{DATE}}）｜
+    数据来源：视频转录 + 弹幕信号｜点击蓝色时间戳可在页内小窗播放，右键可在B站新标签页空降
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# ===== dsh-Bili-Sum 发布排除清单（S3 上线安全）=====
+# 插件布局下运行时数据整体在数据根（<dsh家目录>\bili-sum，仓库外）；以下为老布局（源码直跑）的同目录数据。
+# 登录凭据——绝不进仓库（等价于B站登录态）
+bili-cookie.txt
+# 第三方大文件——由 setup-media.ps1 引导用户自行下载（许可证各异 + 体积超限）
+tools/models/
+tools/ffmpeg/
+tools/whisper/
+tools/whisper-vulkan/
+tools/*.zip
+bin/yt-dlp.exe
+bin/tmp/
+# 产物与缓存——非源码
+output/
+*.log
+*.bak
+_prefill-draft.md
+# 依赖与系统目录
+node_modules/
+.DS_Store
+Thumbs.db
+# 内部工作文档——不进公开仓库（开发状态/内部报告/留档代码；发布文档=README/CHANGELOG/OUTPUT-STANDARDS/PRACTICE-NOTES）
+HANDOFF.md
+reports/
+archive-subtitles/
+bilibili-mcp-backup*

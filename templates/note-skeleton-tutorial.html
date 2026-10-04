@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 教程：{{TITLE}}</title>
+<!--
+  templates/note-skeleton-tutorial.html — 教程模板（token 版，OUTPUT-STANDARDS §4.2）
+  渲染器：node scripts/render-notes.mjs <目录> --template tutorial
+  content.json schema（tutorial）：
+  {
+    "out": "tutorial-notes.html", "attr": "教程速览（软件·Windows部署）",
+    "task": {"what":"学什么","prereq":"前置条件","time":"预计耗时","output":"最终产出"},
+    "quickPath": "一句话最简路径（给回头查步骤的人）",
+    "prereqCheck": ["开始前确认项1","项2"],
+    "steps": [{"no":1,"ts":"08:32","title":"…","op":"操作/命令","purpose":"目的","verify":"验证方法","tip":"视频提示（可选）"}],
+    "errors": [{"raw":"报错原文","cause":"原因","fix":"解法","ts":"08:12"}],
+    "verify": ["最终效果描述"],
+    "tools": [{"name":"软件/链接","note":"版本/说明"}],
+    "signals": {"warnings":["…"],"turning":["…"],"resources":["…"],"memes":["…"]}
+  }
+  硬性约定：.ts 蓝底徽章 / pre#transcript / 单文件自包含；步骤卡必须含 verify（Q 区硬保底同理念）。
+-->
+<style>
+  :root { --blue:#0054a6; --ink:#1f2329; --muted:#667085; --line:#e3e5e8; --bg:#f7f8fa; }
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; color:var(--ink); background:var(--bg); margin:0; line-height:1.75; }
+  main { max-width:880px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { font-size:21px; line-height:1.5; margin:6px 0 14px; }
+  h2 { font-size:17px; margin:34px 0 10px; padding-left:9px; border-left:4px solid var(--blue); }
+  .meta { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 16px; font-size:13px; color:var(--muted); display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:4px 18px; }
+  .meta b { color:var(--ink); font-weight:600; }
+  .meta a { color:var(--blue); text-decoration:none; }
+  .attr { display:inline-block; background:#eaf3fd; color:var(--blue); border-radius:6px; padding:0 8px; font-size:12px; margin-left:6px; vertical-align:1px; }
+  .ts { display:inline-block; white-space:nowrap; background:var(--blue); color:#fff; border-radius:4px; padding:0 6px; font-size:12px; margin-right:6px; }
+  a.ts-jump { color:#fff; text-decoration:none; }
+  .path { background:#eaf3fd; border:1px solid #cfe3f7; border-radius:10px; padding:12px 16px; font-size:14.5px; margin:10px 0; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin:12px 0; font-size:14px; }
+  .card .hd { font-weight:700; color:var(--blue); margin-bottom:6px; }
+  .card .row { margin:4px 0; }
+  .card .row b.k { color:var(--muted); font-weight:600; margin-right:6px; }
+  .op { background:#0f172a; color:#e2e8f0; border-radius:6px; padding:6px 10px; font-family:Consolas,Menlo,monospace; font-size:13px; white-space:pre-wrap; margin:4px 0; }
+  .tip { background:#fff7e6; border:1px solid #f0d090; border-radius:8px; padding:6px 10px; margin-top:6px; font-size:13px; color:#7a5b12; }
+  .chk { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:8px 0; font-size:14px; }
+  .chk label { display:block; margin:4px 0; cursor:pointer; }
+  table { border-collapse:collapse; width:100%; background:#fff; font-size:13.5px; }
+  th,td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:#f0f4f9; font-weight:600; white-space:nowrap; }
+  .sig { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:8px 0; font-size:13.5px; }
+  .sig .cat { display:inline-block; color:#fff; border-radius:5px; font-size:11.5px; padding:0 8px; margin-right:8px; }
+  .sig .cat.warn { background:#c2571f; }
+  .sig .cat.turn { background:#2e8b57; }
+  .sig .cat.res { background:#0054a6; }
+  .sig .cat.meme { background:#7c8798; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin:10px 0; }
+  .grid figure { margin:0; background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .grid img { width:100%; display:block; cursor:zoom-in; }
+  .grid figcaption { font-size:12px; color:var(--muted); padding:5px 8px; }
+  .note { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  details.full { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin-top:10px; }
+  details.full summary { cursor:pointer; color:var(--blue); font-size:13.5px; }
+  pre#transcript { white-space:pre-wrap; font-size:12.5px; line-height:1.9; color:#444; font-family:inherit; margin:10px 0 0; }
+  footer { margin-top:36px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:12px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="note">AI 教程</div>
+  <h1>{{TITLE}}</h1>
+
+  <div class="meta">{{META}}</div>
+
+  <h2>一句话速查</h2>
+  <div class="path">{{QUICK_PATH}}</div>
+
+  <h2>开始前确认</h2>
+  <div class="chk">
+{{PREREQ_CHECK}}
+  </div>
+
+  <h2>分步操作</h2>
+{{STEPS}}
+
+{{ERRORS_BLOCK}}
+{{VERIFY_BLOCK}}
+{{TOOLS_BLOCK}}
+{{SIGNALS_BLOCK}}
+{{GRID_BLOCK}}
+
+  <h2>附录</h2>
+  <details class="full">
+    <summary>完整转录（原始语音转录，正文已静默校正，本附录仅供对照）</summary>
+    <pre id="transcript">{{TRANSCRIPT}}</pre>
+  </details>
+
+  <footer>
+    生成：AI 教程流水线（analyze · route=balanced · whisper small+VAD · {{DATE}}）｜
+    数据来源：视频转录 + 画面帧 + 弹幕信号｜点击蓝色时间戳可在页内小窗播放，右键可在B站新标签页空降
+  </footer>
+</main>
+</body>
+</html>

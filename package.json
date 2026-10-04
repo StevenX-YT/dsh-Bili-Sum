@@ -1,0 +1,28 @@
+{
+  "name": "dsh-bili-sum",
+  "version": "3.0.0",
+  "description": "B站视频理解流水线 DeepSeek Harness 插件：MCP 工具（元数据/弹幕/字幕/评论/转录/抽帧/一键分析）+ 五模板图文笔记渲染 + tsGal 交互层",
+  "type": "module",
+  "license": "Apache-2.0",
+  "keywords": ["dsh", "deepseek-harness", "bilibili", "mcp", "video", "transcription"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "files": [
+    "server.js",
+    "media.js",
+    "bili.js",
+    "paths.js",
+    "cordis.patch.yml",
+    "scripts",
+    "templates",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "CHANGELOG.md",
+    "OUTPUT-STANDARDS.md",
+    "PRACTICE-NOTES.md"
+  ],
+  "scripts": {
+    "doctor": "node scripts/doctor.mjs",
+    "test": "node scripts/test-media-pure.mjs && node scripts/test-tsgal-v2.mjs && node scripts/test-render.mjs"
+  }
+}

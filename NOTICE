@@ -1,0 +1,31 @@
+dsh-Bili-Sum
+Copyright 2026 dsh-Bili-Sum Contributors
+
+This product includes software developed for the DeepSeek Harness ecosystem.
+
+Third-party components (NOT redistributed in this repository; obtained by
+users via scripts/setup-media.ps1 and scripts/fetch-ytdlp.mjs, each under its
+own license):
+
+1. whisper.cpp (whisper-cli) — MIT License
+   Copyright (c) 2023-2024 ggml-org developers
+   https://github.com/ggml-org/whisper.cpp
+
+2. Silero VAD model (ggml-silero-v6.2.0.bin) — MIT License
+   Copyright (c) 2020-present Silero Team
+   https://github.com/snakers4/silero-vad
+   (ggml conversion distributed via https://huggingface.co/ggml-org/whisper-vad)
+
+3. whisper models (ggml-small.bin etc.) — MIT License (part of whisper.cpp)
+   https://huggingface.co/ggerganov/whisper.cpp
+
+4. ffmpeg — LGPL/GPL family (user-installed binary; not bundled)
+   https://ffmpeg.org/
+
+5. yt-dlp — The Unlicense (user-installed binary; not bundled)
+   https://github.com/yt-dlp/yt-dlp
+
+B站 (bilibili.com) API disclaimer: this project uses unofficial bilibili API
+endpoints for personal-use data retrieval. It is not affiliated with, endorsed
+by, or connected to bilibili or Shanghai Watch Electron Co., Ltd. Use at your
+own risk and in accordance with bilibili's terms of service.

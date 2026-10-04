@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 摘要：{{TITLE}}</title>
+<!--
+  templates/note-skeleton.html — 机器渲染模板（token 版）+ 人工渲染参考（2026-10-03 实战经验整理）
+  渲染器：node scripts/render-notes.mjs <输出目录> —— 读取同目录 bundle.json + transcript.txt + content.json，
+  替换本文件所有 {{TOKEN}} 后写出成品并注入 tsGal（样式/结构/注入的单一来源=本文件+渲染器）。
+  手工渲染（调试模式）时：复制本文件改占位符，或直接用渲染器。
+
+  硬性约定（勿删，踩坑记录见 PRACTICE-NOTES.md）：
+    ① .ts 蓝底徽章样式必须保留——tsGal 运行时转链后强制白字，缺蓝底=时间戳隐形
+    ② <pre id="transcript"> 必须保留且内容为 [MM:SS] 文本 行——tsGal 画廊帧标注取材于此
+    ③ 页面保持单文件自包含（file:// 直开），不外链 CSS/JS
+    ④ 敏感争议内容：{{WARN_BLOCK}} 阅读提示 + {{ATTRIBUTION}} 归因表（自述/转述/事实/对方立场）
+-->
+<style>
+  :root { --blue:#0054a6; --ink:#1f2329; --muted:#667085; --line:#e3e5e8; --bg:#f7f8fa; }
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; color:var(--ink); background:var(--bg); margin:0; line-height:1.75; }
+  main { max-width:880px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { font-size:21px; line-height:1.5; margin:6px 0 14px; }
+  h2 { font-size:17px; margin:34px 0 10px; padding-left:9px; border-left:4px solid var(--blue); }
+  .meta { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 16px; font-size:13px; color:var(--muted); display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:4px 18px; }
+  .meta b { color:var(--ink); font-weight:600; }
+  .meta a { color:var(--blue); text-decoration:none; }
+  .attr { display:inline-block; background:#eaf3fd; color:var(--blue); border-radius:6px; padding:0 8px; font-size:12px; margin-left:6px; vertical-align:1px; }
+  .warn { background:#fff7e6; border:1px solid #f0d090; border-radius:10px; padding:10px 16px; font-size:13px; color:#7a5b12; margin:10px 0; }
+  .summary { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 18px; font-size:14.5px; }
+  ul.hl { padding-left:20px; margin:8px 0; }
+  ul.hl li { margin:7px 0; font-size:14.5px; }
+  .ts { display:inline-block; white-space:nowrap; background:var(--blue); color:#fff; border-radius:4px; padding:0 6px; font-size:12px; margin-right:6px; }
+  a.ts-jump { color:#fff; text-decoration:none; }
+  .tags { line-height:2.2; }
+  .tags span { background:#fff; border:1px solid var(--line); border-radius:14px; padding:1px 10px; font-size:12.5px; color:#445; margin-right:6px; display:inline-block; }
+  .qa { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin:10px 0; font-size:14px; }
+  .qa .q { font-weight:600; margin-bottom:4px; }
+  .qa .a p { margin:4px 0; }
+  .src { color:var(--blue); font-size:12.5px; background:#eaf3fd; border-radius:5px; padding:0 6px; margin-right:6px; }
+  .ext { color:#8a6d1a; font-size:12.5px; background:#fbf3d5; border-radius:5px; padding:0 6px; margin-right:6px; }
+  table { border-collapse:collapse; width:100%; background:#fff; font-size:13.5px; }
+  th,td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:#f0f4f9; font-weight:600; white-space:nowrap; }
+  .chaps p { margin:6px 0; font-size:14px; }
+  .chaps b { color:var(--blue); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin:10px 0; }
+  .grid figure { margin:0; background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .grid img { width:100%; display:block; cursor:zoom-in; }
+  .grid figcaption { font-size:12px; color:var(--muted); padding:5px 8px; }
+  .dm { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:8px 0; font-size:13.5px; }
+  .dm .cat { color:#fff; background:#7c8798; border-radius:5px; font-size:11.5px; padding:0 7px; margin-right:8px; }
+  .dm .cat.refute { background:#c2571f; }
+  .dm .cat.god { background:#0054a6; }
+  .dm .cat.guide { background:#2e8b57; }
+  details.full { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin-top:10px; }
+  details.full summary { cursor:pointer; color:var(--blue); font-size:13.5px; }
+  pre#transcript { white-space:pre-wrap; font-size:12.5px; line-height:1.9; color:#444; font-family:inherit; margin:10px 0 0; }
+  .note { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  footer { margin-top:36px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:12px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="note">AI 摘要（速览）</div>
+  <h1>{{TITLE}}</h1>
+
+  <div class="meta">{{META}}</div>
+
+{{THESIS_BLOCK}}
+{{WARN_BLOCK}}
+  <h2>摘要</h2>
+  <div class="summary">
+{{SUMMARY}}
+  </div>
+
+{{CHAIN_BLOCK}}
+{{HIGHLIGHTS_BLOCK}}
+
+{{TAGS_BLOCK}}
+{{QA_BLOCK}}
+{{TERMS_BLOCK}}
+{{CHAPTERS_BLOCK}}
+
+{{ATTRIBUTION_BLOCK}}
+
+{{GRID_BLOCK}}
+{{DM_BLOCK}}
+
+  <h2>附录</h2>
+  <details class="full">
+    <summary>完整转录（原始语音转录，正文已静默校正，本附录仅供对照）</summary>
+    <pre id="transcript">{{TRANSCRIPT}}</pre>
+  </details>
+
+  <footer>
+    生成：AI 摘要流水线（analyze {{FOOTER_PIPELINE}} · {{DATE}}）｜
+    数据来源：视频转录 + 关键帧 + 弹幕信号 + 视频元数据｜点击蓝色时间戳可在页内小窗播放，右键可在B站新标签页空降
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 精讲：{{TITLE}}</title>
+<!--
+  templates/note-skeleton-lecture.html — 课程精讲模板（token 版，OUTPUT-STANDARDS §4.1）
+  渲染器：node scripts/render-notes.mjs <目录> --template lecture
+  输入 content.json schema（lecture）：
+  {
+    "out": "lecture-notes.html", "attr": "课程速览（数学·等比数列）",
+    "summary": ["段1", "段2"],
+    "course": {"subject":"数学","topic":"…","level":"…","prereq":"…","audience":"…"},
+    "framework": [{"no":1,"name":"…","core":"一句话结论","ts":"00:00"}],
+    "knowledge": [{"no":1,"name":"…","ts":"00:00","definition":"…","points":["…"],"emphasis":"老师原话（可选）","usage":"何时用（可选）"}],
+    "examples": [{"no":1,"ts":"05:18","title":"…","question":"题目","approach":"思路","steps":["①…","②…"],"answer":"…","pitfalls":"易错点"}],   // steps 必填，缺则渲染报错（Q1①硬保底）
+    "authorSummary": [{"ts":"23:49","quote":"原话"}],
+    "difficulty": [{"point":"难点","evidence":"弹幕证据","advice":"建议"}],
+    "prereq": {"before":["前置"],"after":["衔接"]},
+    "review": ["掌握点1","掌握点2"],
+    "signals": {"warnings":["难点警示"],"turning":["消化拐点"],"resources":["资源指引"],"memes":["课堂梗"]},
+    "gridNote": "可选"
+  }
+  硬性约定（勿删）：.ts 蓝底徽章 / pre#transcript / 单文件自包含 / 敏感归因（课程一般无）。
+-->
+<style>
+  :root { --blue:#0054a6; --ink:#1f2329; --muted:#667085; --line:#e3e5e8; --bg:#f7f8fa; }
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; color:var(--ink); background:var(--bg); margin:0; line-height:1.75; }
+  main { max-width:880px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { font-size:21px; line-height:1.5; margin:6px 0 14px; }
+  h2 { font-size:17px; margin:34px 0 10px; padding-left:9px; border-left:4px solid var(--blue); }
+  .meta { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 16px; font-size:13px; color:var(--muted); display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:4px 18px; }
+  .meta b { color:var(--ink); font-weight:600; }
+  .meta a { color:var(--blue); text-decoration:none; }
+  .attr { display:inline-block; background:#eaf3fd; color:var(--blue); border-radius:6px; padding:0 8px; font-size:12px; margin-left:6px; vertical-align:1px; }
+  .summary { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 18px; font-size:14.5px; }
+  .ts { display:inline-block; white-space:nowrap; background:var(--blue); color:#fff; border-radius:4px; padding:0 6px; font-size:12px; margin-right:6px; }
+  a.ts-jump { color:#fff; text-decoration:none; }
+  table { border-collapse:collapse; width:100%; background:#fff; font-size:13.5px; }
+  th,td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:#f0f4f9; font-weight:600; white-space:nowrap; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin:12px 0; font-size:14px; }
+  .card .hd { font-weight:700; color:var(--blue); margin-bottom:6px; }
+  .card .row { margin:4px 0; }
+  .card .row b.k { color:var(--muted); font-weight:600; margin-right:6px; }
+  .steps { margin:6px 0; padding-left:0; list-style:none; counter-reset:st; }
+  .steps li { margin:4px 0; padding-left:26px; position:relative; }
+  .steps li::before { counter-increment:st; content:counter(st); position:absolute; left:0; top:2px; background:var(--blue); color:#fff; border-radius:50%; width:18px; height:18px; font-size:11px; text-align:center; line-height:18px; }
+  .pit { background:#fff7e6; border:1px solid #f0d090; border-radius:8px; padding:6px 10px; margin-top:6px; font-size:13px; color:#7a5b12; }
+  .quote { border-left:3px solid var(--blue); background:#eaf3fd; border-radius:0 8px 8px 0; padding:8px 12px; margin:8px 0; font-size:14px; }
+  ul.plain { padding-left:20px; margin:6px 0; }
+  ul.plain li { margin:4px 0; font-size:14px; }
+  .sig { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:8px 0; font-size:13.5px; }
+  .sig .cat { display:inline-block; color:#fff; border-radius:5px; font-size:11.5px; padding:0 8px; margin-right:8px; }
+  .sig .cat.warn { background:#c2571f; }
+  .sig .cat.turn { background:#2e8b57; }
+  .sig .cat.res { background:#0054a6; }
+  .sig .cat.meme { background:#7c8798; }
+  .rv { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:8px 0; font-size:14px; }
+  .rv label { display:block; margin:4px 0; cursor:pointer; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin:10px 0; }
+  .grid figure { margin:0; background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .grid img { width:100%; display:block; cursor:zoom-in; }
+  .grid figcaption { font-size:12px; color:var(--muted); padding:5px 8px; }
+  .note { font-size:12.5px; color:var(--muted); margin-top:2px; }
+  details.full { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin-top:10px; }
+  details.full summary { cursor:pointer; color:var(--blue); font-size:13.5px; }
+  pre#transcript { white-space:pre-wrap; font-size:12.5px; line-height:1.9; color:#444; font-family:inherit; margin:10px 0 0; }
+  footer { margin-top:36px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:12px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="note">AI 课程精讲</div>
+  <h1>{{TITLE}}</h1>
+
+  <!-- 1. 课程名片 -->
+  <div class="meta">{{META}}</div>
+
+  <!-- 2. 课程摘要 -->
+  <h2>这节课讲什么</h2>
+  <div class="summary">
+{{SUMMARY}}
+  </div>
+
+  <!-- 3. 知识框架表 -->
+  <h2>知识框架表</h2>
+  <table>
+    <tr><th>#</th><th>知识点</th><th>一句话核心结论</th><th>时间段</th><th>板书帧</th></tr>
+{{FRAMEWORK}}
+  </table>
+
+  <!-- 4. 知识点精讲卡 -->
+{{KNOWLEDGE_BLOCK}}
+
+  <!-- 5. 例题卡（完整解法硬保底） -->
+{{EXAMPLES_BLOCK}}
+
+  <!-- 6. 作者总结（老师原话） -->
+{{AUTHOR_BLOCK}}
+
+  <!-- 7. 难点地图 -->
+{{DIFFICULTY_BLOCK}}
+
+  <!-- 8. 前置与衔接 -->
+{{PREREQ_BLOCK}}
+
+  <!-- 9. 复习清单 -->
+{{REVIEW_BLOCK}}
+
+  <!-- 10. 学习信号面板（弹幕学习化） -->
+{{SIGNALS_BLOCK}}
+{{GRID_BLOCK}}
+
+  <!-- 11. 附录 -->
+  <h2>附录</h2>
+  <details class="full">
+    <summary>完整转录（原始语音转录，正文已静默校正，本附录仅供对照）</summary>
+    <pre id="transcript">{{TRANSCRIPT}}</pre>
+  </details>
+
+  <footer>
+    生成：AI 课程精讲流水线（analyze type=lecture · route=balanced · whisper small+VAD+dual · {{DATE}}）｜
+    数据来源：视频转录 + 板书帧 + 弹幕信号｜点击蓝色时间戳可在页内小窗播放，右键可在B站新标签页空降
+  </footer>
+</main>
+</body>
+</html>
