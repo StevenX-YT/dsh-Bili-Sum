@@ -59,7 +59,7 @@
 5. present <dir>/<输出>.html
 ```
 
-- 与旧流程对比：不逐帧 read_image、不手写 HTML 样板——兔娘视频实测交付链路由 ~9 分钟压缩到 ~3 分钟量级
+- 与旧流程对比：不逐帧 read_image、不手写 HTML 样板——兔娘视频实测交付链路由约 9 分钟压缩到约 3 分钟量级
 - **条数口诀（Q4）**：亮点/关键点条数=**时长档区间**（OUTPUT-STANDARDS §2.2 时长表）；密度极高→可列独立要点 ≥ 上限×**1.2** 才可突破（独立主张+独立时间戳+**同义必合并**）；稀疏→按实数写、缺的区块整块省略（F2）；命名按模板默认（digest=关键点/share=时间线亮点）或 `highlightsTitle` 指定
 - 直链限流时渲染器自动 iframe 回退；重跑一次 render-notes 即恢复原生小窗
 - 长视频（>30min）analyze 自动后台；查进度 `node scripts/analyze-status.mjs <BV>`——输出含**终态 `state`：running / completed / failed**（子进程回写 completed/failed+时间戳；旧任务按「新鲜 bundle+pid」推断；**勿用 pidAlive 单独判断完成与否**）
