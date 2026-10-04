@@ -7,7 +7,9 @@
 
 ## 安装（DeepSeek Harness 插件，一句话）
 
-在 Harness 里对 agent 说：**「安装 dsh-Bili-Sum 插件」**——agent 会执行 `plugin_manager` 的 `install_bundle`，`target` 填本仓库地址（如 `github:<owner>/dsh-Bili-Sum`，也支持本地目录与 npm 包名）。安装完成后：
+仓库：**https://github.com/StevenX-YT/dsh-Bili-Sum**
+
+在 Harness 里对 agent 说：**「安装 dsh-Bili-Sum 插件」**——agent 会执行 `plugin_manager` 的 `install_bundle`，`target` 填 `github:StevenX-YT/dsh-Bili-Sum`（也支持本地目录与 npm 包名）。安装完成后：
 
 1. **自检**：`node scripts/doctor.mjs`（脚本位于 profile 的 `node_modules\dsh-bili-sum\scripts\`；也可让 agent 跑，`mcp__bilibili__status` 工具同样输出就绪状态与路径）
 2. **媒体工具链**：`scripts\setup-media.ps1` 下载 ffmpeg / whisper.cpp / 中文模型 / Silero VAD / yt-dlp（约 700MB，国内镜像；均不随仓库分发）
