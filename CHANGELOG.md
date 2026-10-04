@@ -5,6 +5,23 @@
 > 2. **tsGal runtime**（templates/gallery-runtime.js）：组件独立版本（v1画廊→v2空降→v3小窗→v3.4字幕→v3.6去字幕），只在本文件附注，不与项目版本绑定
 > 3. **里程碑名**（三期提速/A-D期）：changelog 条目分组用，不是版本号
 
+## [3.2.1] — 2026-10-05
+
+修复「新会话配方缺失」bug（HANDOFF 待办 #1，方案 A+B）：新会话 agent 只拿到旧版 analyze 描述（仅「渲染前用 read_image」），无任何交付方法 → 绕过插件管线手写 HTML，成品无模板/tsGal/静默校正。
+
+### Fixed
+- **analyze 工具描述内联标准作业（方案 A）**：交付流程（brief.md → content.json → render-notes → present）、判型信号与回显、五模板 content.json 字段全名（通用+lecture/tutorial/share/info）、硬保底（例题 steps/步骤 verify/5W1H/敏感三件套）、Q4 条数口诀（时长四档+1.2×触顶+F2 稀疏）、开关与后台进度——agent 不读工作区文档也能走对管线
+- **transcribe 工具描述补防绕过指针**：仅转录稿场景单独用；笔记交付改走 analyze + usage 资源（原描述引导「配合 keyframes 自行总结」正是绕管线入口之一）
+
+### Added
+- **MCP resources（方案 B）**：`resources/list`/`resources/read` 实现（capabilities 此前已声明未实现）——`usage://dsh-bili-sum` 返回精简版标准作业手册（流程/判型/五模板 schema/硬保底/Q4/交付检查表）；未知 URI 报 -32002
+- **回归测试 `scripts/test-server-usage.mjs`（14 项）**：锁定 analyze/transcribe 描述关键标记与 resources 读写（配方可见性回归——改描述漏标记即红）；server.js 导出 TOOLS/dispatch/USAGE_* 并加 isMain 主模块守卫（与 render-notes.mjs 同模式，import 不再启动 stdio）；npm test 变为四套串跑
+- SERVER_INFO/package.json 版本 3.2.0→3.2.1（semver fix=patch）
+
+### 验证
+- 四套回归全绿：server-usage **14** + media **43** + tsGal **31** + render **47**
+- JSON-RPC stdio 冒烟：initialize(v3.2.1, resources cap) / resources/list / resources/read(2711B markdown) / tools/list(analyze 描述 1877 字含流程) 全通过
+
 ## [3.2.0] — 2026-10-04
 
 Q4/Q5/Q6 三轮功能完善 + 后台任务终态改进（实战问题驱动、用户逐轮拍板；3.1.1→3.2.0 按 semver feature=minor）。
