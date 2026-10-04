@@ -1,165 +1,237 @@
-# dsh-Bili-Sum（B站视频理解流水线）
+# dsh-Bili-Sum — B站视频理解流水线（DeepSeek Harness 插件）
 
-> 当前版本：**v3.1.1**（版本历史见 `CHANGELOG.md`；内部组件 tsGal runtime v3.6 独立版本）
-> 许可证：Apache-2.0（见 `LICENSE`；第三方组件归属见 `NOTICE`）
+> 当前版本：**v3.1.1**（版本历史见 `CHANGELOG.md`；tsGal 交互层 v3.6 独立版本）
+> 许可证：Apache-2.0（第三方组件归属见 `NOTICE`）｜仓库：https://github.com/StevenX-YT/dsh-Bili-Sum
 
-给 DeepSeek Harness 提供的 B 站数据 MCP 服务器：把「BV 号 → 视频元数据 / 弹幕 / 字幕 / 评论 / **语音转录 / 关键帧画面**」封装成标准 MCP 工具，并通过五套模板（讲解/课程/教程/分享/资讯）渲染成图文笔记。
+**一句话**：给 DeepSeek Harness 装上"B站视频理解"能力——对 agent 说一个 BV 号，它就把视频**听懂、看懂、整理成带时间戳的图文笔记**交付给你；点笔记里的蓝色时间戳，右下角小窗直接播 B 站原视频的对应片段。
 
-## 安装（DeepSeek Harness 插件，一句话）
+**目录**：[1 简介](#1-简介) · [2 能力一览](#2-能力一览) · [3 安装](#3-安装) · [4 使用](#4-使用通俗向) · [5 配置进阶](#5-配置进阶) · [6 故障排查](#6-故障排查) · [7 实现要点](#7-实现要点用户相关) · [8 安全与免责](#8-安全与免责) · [9 开发](#9-开发)
 
-仓库：**https://github.com/StevenX-YT/dsh-Bili-Sum**
+## 1. 简介
 
-在 Harness 里对 agent 说：**「安装 dsh-Bili-Sum 插件」**——agent 会执行 `plugin_manager` 的 `install_bundle`，`target` 填 `github:StevenX-YT/dsh-Bili-Sum`（也支持本地目录与 npm 包名）。安装完成后：
+你是否有过这样的时刻：B站收藏了一个 1 小时的课/教程/长视频，一直没时间看；或者想快速判断一个视频值不值得看；又或者看完想留一份**能复习的笔记**而不是一堆收藏夹链接。
 
-1. **自检**：`node scripts/doctor.mjs`（脚本位于 profile 的 `node_modules\dsh-bili-sum\scripts\`；也可让 agent 跑，`mcp__bilibili__status` 工具同样输出就绪状态与路径）
-2. **媒体工具链**：`scripts\setup-media.ps1` 下载 ffmpeg / whisper.cpp / 中文模型 / Silero VAD / yt-dlp（约 700MB，国内镜像；均不随仓库分发）
-3. **登录 Cookie（可选）**：见下文「配置登录 Cookie」
-4. **质量路线（可选）**：`ggml-medium.bin`（1.43GB）**不随安装与工具链自动下载**——仅质量档（`model=medium`）需要；要用时手动下载放数据根 `tools\models\`（`https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin`），`node scripts/doctor.mjs` 会显示就绪状态。缺失时 `model=medium` 自动回退 small 并在结果里显式记录 `modelFallback`，不会静默降级。
+dsh-Bili-Sum 就是干这个的：它把视频**转成文字稿 + 关键画面截图 + 弹幕情绪信号**，再按视频类型自动整理成结构化笔记网页——摘要、亮点（带原话和时间戳）、问答、术语表、章节、课程还有例题完整解法。全程自动，几分钟出成品。
 
-**数据根**：运行时数据（`output/` 产物、`tools/` 工具链、`bin/`、`bili-cookie.txt`）默认在 `<dsh家目录>\bili-sum\`（Windows 通常 `%USERPROFILE%\.dsh\bili-sum`），由插件 patch 自动注入 `BILI_DATA_ROOT`——**与插件代码目录分离**，卸载/升级插件不影响数据。未设置该变量时（如直接跑仓库源码）数据回落到代码同目录（老布局兼容）。
+## 2. 能力一览
 
-- **卸载**：Harness 插件管理里移除 `dsh-bili-sum` bundle 即可；数据根目录可自行保留或删除
-- **node 不在 PATH 时**：给 MCP 连接设环境变量 `BILI_NODE_PATH=<node绝对路径>`（或在系统 PATH 里加入 node）
-- **安装失败排查**：报 `git: 'remote-https' is not a git command` → 本机 git 安装损坏，重装 Git for Windows（或确保 PATH 上有可用 git）；报 `ERR_PNPM_MISSING_TARBALL_INTEGRITY`（URL tarball 安装）→ 先下载再本地安装：`curl -L https://github.com/StevenX-YT/dsh-Bili-Sum/archive/refs/heads/main.tar.gz -o dsh-bili-sum.tar.gz`，然后 `target` 填该本地文件路径；装完自检 `node scripts/doctor.mjs`
+### 2.1 MCP 工具（8 个）
 
-## 免责与安全
+插件装好后 agent 会多出 8 个"B站工具"，日常你不用直接碰它们，agent 会自己调用；这里列出来让你知道它**能做什么、哪些功能需要登录 Cookie**：
 
-- **免责声明**：本项目使用 bilibili 非官方 API 接口，仅供个人学习研究使用，与 bilibili 官方无关联；请遵守 bilibili 用户协议，勿高频请求
-- **安全**：`bili-cookie.txt`（登录凭据）已被 .gitignore 排除且位于数据根（仓库外）；请勿将你的 Cookie 提交到任何仓库或发送给他人
-- **第三方组件**：whisper.cpp / Silero VAD（MIT）、ffmpeg（LGPL/GPL）、yt-dlp（Unlicense）——均由 `setup-media.ps1` 引导用户自行下载，归属与许可见 `NOTICE`
-
-## 工具列表
-
-| 工具 | 作用 | 登录 Cookie |
+| 工具 | 干什么（通俗版） | 需要 Cookie |
 |---|---|---|
-| `video-info` | 视频元数据：标题、简介、UP主、播放/点赞数据、分P、字幕语言列表 | 不需要 |
-| `danmaku` | 弹幕（带时间轴），支持关键词过滤、分P（链接 `?p=N` 自动识别） | 不需要 |
-| `subtitles` | 字幕：列出可用语言；`lang` 或 `download=true` 时返回字幕全文 | 部分需要 |
-| `comments` | 评论区：热评/最新/点赞排序、分页、关键词过滤 | **需要** |
-| `analyze` | **一键编排（推荐入口）**：音视频流**并行下载**（音频就绪即转录）→ whisper 转录（学科词偏置 + **VAD 静音跳过 + 幻觉抑制**）→ 转录驱动抽帧+关键时刻补抽 → 弹幕信号 → `bundle.json`；`route=fast` 快速路线；**>30 分钟长视频自动转后台进程**（`scripts/analyze-status.mjs` 查进度） | 不需要 |
-| `transcribe` | 语音转录：可传 `prompt`（领域词偏置）/ `threads`（默认按 CPU 自动）/ `page` | 不需要 |
-| `keyframes` | 关键帧：默认**自适应去重**（低帧率采样全片→字节差异去重，捕捉板书重写）；支持 `timestamps[]` 精抽、`everySec` 等间隔 | 不需要 |
-| `status` | 服务器自检：yt-dlp / ffmpeg / whisper / 模型 / Cookie 状态 | — |
+| `video-info` | 查视频"身份证"：标题、UP主、播放量、分几P、有无字幕 | 不用 |
+| `analyze` | **一键全包（推荐入口）**：听录音转文字＋抽关键画面＋抓弹幕信号，产出完整分析包 | 不用 |
+| `transcribe` | 只要文字稿：带时间戳的完整转录 | 不用 |
+| `keyframes` | 只要画面：板书/PPT/演示的关键帧截图 | 不用 |
+| `danmaku` | 捞弹幕（带时间点），支持关键词过滤 | 不用 |
+| `subtitles` | 要字幕（仅部分视频有 AI 字幕轨） | 大部分要 |
+| `comments` | 看评论区（热评/最新/按点赞） | **要**（怎么配见 [§5.1](#51-配置登录-cookie解锁评论高清字幕)） |
+| `status` | 自检：工具齐不齐、路径对不对、Cookie 状态 | — |
 
-支持的输入格式：`BV1GJ411x7h7`、`av80433022`、`https://www.bilibili.com/video/BV...`（可带 `?p=N` 分P）、`https://b23.tv/...` 短链。
+支持的输入：`BV号` / `av号` / 完整视频链接（可带 `?p=N` 选分P）/ b23.tv 短链。
 
-## 分析与渲染工作流（v2 推荐）
+### 2.2 三条路线（深度不同，准确度同样有保障）
 
-用户只要说「**帮我总结 BVxxx（?p=N），用于学习/快速了解**」，agent 执行：
+通俗版：**快速=先尝后买，平衡=标准套餐，质量=精读版**。三条路线"写出来的内容都必须准确"这条底线完全一样，区别只是**覆盖多少、写多厚、花多长时间**。
 
-1. `analyze`（type=lecture 课程 / general 普通视频）→ 一次跑完转录+抽帧+弹幕信号，产出 `output/<bv>_pN/bundle.json`（含带时间戳转录、关键时刻+配帧、弹幕学习信号）
-2. `read_image` 阅读 bundle 中关键时刻对应的帧（**转录驱动选帧**：先读文稿理解结构，再看画面校正术语/公式）
-3. 渲染成品 HTML——**日常用快速交付模式**：把智力内容写成 `output/<dir>/content.json`（schema 见 `scripts/render-notes.mjs` 头注释，完整样例 `output/BV1YaeN6xEWR/content.json`），然后 `node scripts\render-notes.mjs <dir>`——模板填充+直链获取+tsGal 注入一步完成（秒级，选帧可自动）；**调试/精修用手工模式**：从 `templates/note-skeleton.html`（token 版）起步按规范改（`PRACTICE-NOTES.md` 有双模式作业法与踩坑清单）：
-   - 课程 → `templates/lecture-notes.md`（知识框架表/分段精讲配板书/易错易混难点解答/复习清单；不输出勘误表，正文直接正确；弹幕仅作内部难点线索）
-   - 普通视频 → `templates/video-digest.md`（三层信息密度：TL;DR→亮点+Q&A+术语→章节时间轴；观点归因；广告位标注）
-   - 只要全文 → `templates/transcript-pretty.md`（图文转录，误写括号标注）
-4. **注入时间戳画廊 + B站小窗播放（tsGal v3.6）**：`& scripts\inject-gallery.ps1 -HtmlPath <笔记.html>`——所有 `.ts` 蓝色时间戳可点击，
-   **左键在页内右下角悬浮小窗播放**。视频源双通道：**本地服务器模式（推荐）** `node scripts\serve-notes.mjs` 后经
-   `http://127.0.0.1:8930/` 打开笔记 → 小窗走 `/proxy` 代理（自动补B站 Referer，实测解决 CDN 403）→
-   原生 `<video>` 完整支持 **空降/点击暂停**；
-   视频由B站 CDN 在线流式传输，不下载本地。file:// 直开则回退B站播放器 iframe（登录态下空降可能被观看历史续播干扰）；
-   右键仍可在B站新标签页空降；小窗可拖动/缩放记忆/双击复位/ESC关闭；每个时间段旁另有折叠画廊。规范见 templates/lecture-notes.md「tsGal v3.6」（v3.6 起页面内字幕系统已移除，留档 `archive-subtitles/`）
-5. 用 `present` 交付 HTML 文件卡片
+| 路线 | 通俗定位 | 分析侧做什么 | 输出多深 | 什么时候用 |
+|---|---|---|---|---|
+| **快速 fast** | 先尝后买：一杯咖啡时间知道这视频讲什么 | 定点截图（≤12 张）+ 完整文字稿 | 1 段摘要 + 5~6 个亮点 + 2 个问答 | 挑视频、追热点、时间紧 |
+| **平衡 balanced**（默认） | 标准套餐：不漏重点的完整笔记 | 全片扫描截图（20 张）+ 关键时刻补抽 + 弹幕信号 | 2 段摘要 + 10~14 亮点 + 4~5 问答 + 章节 + 术语 + 归因表 | 日常默认：学习引用、工作参考 |
+| **质量 quality** | 精读版：可以当学习资料反复看 | 截图上限 40 + **medium 转录** + 关键段落对照画面交叉核验 | 15~20 亮点（带子要点）+ 6~8 问答（含反例）+ 例题完整变式 | 课程精学、高价值内容存档 |
 
-CLI 等价入口（不经过 MCP 时）：`node scripts\analyze.mjs <链接> --type lecture|general [--route balanced|fast] [--page N] [--frames N] [--keep] [--no-vad] [--dual|--no-dual] [--bg]`
+**质量档 × medium 模型装/不装的差异**（模型按需自装，见 [§5.3](#53-质量路线medium-模型可选)）：
 
-成品示例（均已注入 tsGal 画廊）：
-- `output/BV1CAxaeHEeH_p8/lecture-notes.html`（宋浩高数 P8 课程笔记，19:37，21 帧覆盖全片板书）
-- `output/BV1jChb6sEeK/calligraphy-notes.html`（胆巴碑楷书课第1节，65 分钟，32 帧）
-- `output/BV1FtaJ6BEsd/video-digest.html`（章北海official 视频速览，与用户提供的标杆导出同源对比）
+| 维度 | 未装 medium（默认） | 已装 medium（1.43GB） |
+|---|---|---|
+| 转录模型 | small——快，日常够用 | medium——准 |
+| 专有名词 | 偶有同音字错误（如"律师函"听成"律师喊"），渲染时自动校正大部分 | **实测：11 处已知错误修对 7.5 处**，课程数学术语显著更稳 |
+| 标点/分段 | 无标点、句子碎 | 自带标点、分段连贯可读 |
+| 速度 | 基准（1 分 40 秒音频约 26 秒转完） | 约 2.3 倍耗时 |
+| 输出字形 | 简体 | 繁体 → 插件落盘前**自动转简体**（对你无感） |
+| 忘装会怎样 | — | 用质量档会**自动回退 small 并在结果里明确标注** `modelFallback`，绝不静默降级 |
+| 你要做什么 | 什么都不用做 | 三步启用（§5.3） |
 
-产物目录：`output/<bvid>_pN/`（bundle.json / transcript.txt / transcript.json / kf_*.png / kf_at_*.png）。
-中间音视频默认删除（`keepMedia: true` 保留）。
+### 2.3 五个模板（类型不同，长得不同）
 
-## 目录结构
+通俗版：视频是**什么类型**决定笔记**长什么样**——不用记模板名，说人话即可，agent 自动判断并回显（说"用XX模板"可覆盖）：
 
-```
-dsh-Bili-Sum/
-├── package.json          # bundle 清单（dsh-bili-sum；files 白名单控制安装内容）
-├── cordis.patch.yml      # Harness 插件补丁：注册 MCP stdio 连接（!!js 零绝对路径）
-├── server.js             # MCP 服务器（stdio JSON-RPC，零依赖）
-├── bili.js               # B 站数据 API（元数据/弹幕/字幕/评论）
-├── media.js              # 媒体流水线（playurl 直连/wbi 签名/ffmpeg/whisper/抽帧）
-├── paths.js              # 路径解析单一事实源（PKG_ROOT=代码资产 / DATA_ROOT=运行时数据）
-├── scripts/
-│   ├── doctor.mjs        # 安装自检（数据根/工具链/模型/Cookie；exit 0=就绪）
-│   ├── analyze.mjs       # 一键编排 CLI（与 MCP analyze 工具同逻辑）
-│   ├── render-notes.mjs  # 渲染器（content.json→HTML+tsGal注入，五模板）
-│   ├── analyze-status.mjs# 后台分析进度查询
-│   ├── serve-notes.mjs   # 本地笔记服务器 + CDN Referer 代理
-│   ├── setup-media.ps1   # 媒体工具链安装器（下载至数据根 tools/）
-│   ├── fetch-ytdlp.mjs / dl.mjs   # yt-dlp 下载 / 通用下载器
-│   ├── check-cookie.mjs  # 登录态验证
-│   ├── inject-gallery.ps1# tsGal 注入（幂等）
-│   ├── fetch-stream.mjs  # 注入时在线取B站直链（3次重试）
-│   ├── test-*.mjs        # 回归测试（media纯函数/tsGal/渲染器 26+24+37 项）
-│   └── peek.mjs / danmaku-peek.mjs / probe-*.mjs / A/B 工具
-├── templates/            # 五模板骨架 + tsGal 运行时 + 渲染规范
-│   ├── note-skeleton*.html / gallery-runtime.js
-│   └── lecture-notes.md / video-digest.md / transcript-pretty.md / ...
-├── LICENSE / NOTICE / README.md / CHANGELOG.md
-├── OUTPUT-STANDARDS.md   # 输出质量规格书（Q1–Q11 拍板定稿）
-└── PRACTICE-NOTES.md     # 实战经验手册（判型规则/标准作业/踩坑清单）
-# 运行时数据（插件布局，不入库）：<dsh家目录>\bili-sum\{output,tools,bin,bili-cookie.txt}
-```
+| 模板 | 通俗说明 | 典型视频 | 核心区块 | 硬保底（必须有） |
+|---|---|---|---|---|
+| **讲解** digest | 帮你看懂"别人在讲什么观点" | 事件评论、科普、测评 | 摘要＋亮点＋Q&A＋术语＋**观点归因表**（谁说的、哪些是事实） | 敏感话题必带归因表 |
+| **课程** lecture | 像助教把一节课整理成讲义 | 网课、讲座、考研课 | 知识框架表（带板书图）＋知识点精讲＋**例题完整解法**＋复习清单 | 例题缺完整步骤直接渲染报错 |
+| **教程** tutorial | 照着做的操作手册 | 安装、配置、部署视频 | 前置检查＋步骤卡（做什么/为什么/怎么验证）＋常见报错 | 每步必须写"怎么算成功" |
+| **分享** share | 抓重点和金句的轻量速览 | vlog、日常、旅行 | TL;DR＋时间线亮点＋语录＋有用信息 | 不硬凑：没语录整块不显示 |
+| **资讯** info | 一分钟看懂一条热点 | 新闻速报、热点事件 | 一句话快讯＋**5W1H 表**＋关键数据＋各方反应 | 5W1H（谁/何时/何地/何事/为何/如何）必填 |
 
-## 媒体工具链安装 / 更新
+## 3. 安装
+
+### 3.1 前置条件
+
+Windows ＋ DeepSeek Harness ＋ **Node.js ≥ 18**（在 PATH 上；不在也有办法，见 §5.2）。若用 git 方式安装还需本机 git 正常（损坏也有兜底，见 §6）。
+
+### 3.2 一句话安装
+
+在 Harness 里对 agent 说：**「安装 dsh-Bili-Sum 插件」**。agent 会执行 `install_bundle`，`target` 三选一：
+
+| 方式 | target 填什么 | 适合 |
+|---|---|---|
+| **git 安装**（首选） | `github:StevenX-YT/dsh-Bili-Sum` | 本机 git 正常时最顺 |
+| **本地 tarball**（兜底，实测稳） | 先 `curl -L https://github.com/StevenX-YT/dsh-Bili-Sum/archive/refs/heads/main.tar.gz -o dsh-bili-sum.tar.gz`，target 填该文件路径 | git 装失败/网络走代理时 |
+| 目录安装 | 克隆本仓库后的本地路径 | 想改代码的开发者 |
+
+### 3.3 装完三步
 
 ```powershell
-# 安装或更新 ffmpeg + whisper.cpp + 中文模型（国内镜像，已自动处理）
+# ① 自检（在插件目录 scripts\ 下；让 agent 跑也行，status 工具同效）
+node scripts\doctor.mjs        # exit 0 = 就绪，缺什么会打印修复指引
+# ② 媒体工具链（约 700MB，国内镜像，重复跑自动跳过已有）
 Set-ExecutionPolicy -Scope Process Bypass -Force
-& scripts\setup-media.ps1
+& scripts\setup-media.ps1      # ffmpeg + whisper + 中文模型(small) + VAD + yt-dlp
+# ③ 登录 Cookie（可选，解锁评论/高清；步骤见 §5.1）
 ```
 
-下载源：gyan.dev / GitHub(经 ghfast.top 镜像) / 模型走 hf-mirror.com。
-已装好则自动跳过；模型可换更大的 `ggml-medium.bin`（放进 `tools/models/` 即可）。
+### 3.4 数据根布局
 
-## 配置登录 Cookie（解锁评论 + 更多字幕）
+插件代码和运行数据**分离**（数据在 `<dsh家目录>\bili-sum\`，Windows 通常 `%USERPROFILE%\.dsh\bili-sum`，由插件自动注入，你不用管）：
+
+| 目录 | 放什么 | 谁产生 |
+|---|---|---|
+| `output\<视频ID>\` | 笔记网页、关键帧截图、文字稿、分析包 | 每次分析 |
+| `tools\` | ffmpeg / whisper / 模型（small、medium、VAD） | setup-media 或手动 |
+| `bin\` | yt-dlp | setup-media |
+| `bili-cookie.txt` | 登录凭据（可选） | 你 |
+
+好处：卸载/升级插件不影响数据；反过来数据放哪也不影响插件。
+
+### 3.5 卸载
+
+Harness 插件管理里移除 `dsh-bili-sum` 即可；数据根目录想留想删随意。
+
+## 4. 使用（通俗向）
+
+### 4.1 对 agent 说人话
+
+你只需要说：
+
+- 「**帮我总结一下 BVxxxx，我想快速了解讲了什么**」→ 快速档速览
+- 「**帮我总结 BVxxxx，用于学习**」→ 默认平衡档完整笔记
+- 「**用质量档总结 BVxxxx，讲细一点**」→ 精读版（需先装 medium，§5.3）
+- 「**用教程模板重新渲染一下**」→ 换个模板重出（秒级）
+
+然后什么都不用管。agent 会：分析视频（转文字＋截图＋弹幕信号）→ 自动判断类型和深度 → 写成网页笔记 → **在聊天里交付卡片**，点开就是成品。
+
+### 4.2 笔记怎么打开
+
+| 方式 | 怎么做 | 特点 |
+|---|---|---|
+| present 卡片 | 聊天里直接点 | 最常用 |
+| 双击 HTML 文件 | 产物目录里找 `*-notes.html` | 直接看没问题；小窗播放会退化成B站播放器 |
+| **本地小窗播放模式**（看课推荐） | `node scripts\serve-notes.mjs` → 浏览器开 `http://127.0.0.1:8930/` → 点开笔记 | **所有蓝色时间戳可点**，右下角小窗直接播 B 站原视频对应段落（本地代理自动带 Referer，不被B站拒绝）；视频在线流式播放，不下载本地 |
+
+### 4.3 命令行方式（不用 agent 时）
+
+```powershell
+node scripts\analyze.mjs <BV链接> --type lecture|general [--route fast] [--model medium]   # 分析
+node scripts\render-notes.mjs <目录名> --template lecture                                   # 渲染
+node scripts\analyze-status.mjs <BV链接>                                                     # 长视频后台进度
+```
+
+## 5. 配置进阶
+
+### 5.1 配置登录 Cookie（解锁评论、高清、字幕）
 
 1. 浏览器登录 bilibili.com → F12 开发者工具 → Application → Cookies
 2. 复制 `SESSDATA` 的值（只要值，不要 `SESSDATA=` 前缀也行）
-3. 写入 `bili-cookie.txt`（数据根目录，未设置 `BILI_DATA_ROOT` 时为源码目录），一行即可：
-   ```
-   SESSDATA=xxxxxx（你的值）
-   ```
-   或者直接粘贴完整的 Cookie 字符串也支持。
-4. 重启 Harness（或重载插件）让 MCP 服务器重新读取。
+3. 写入**数据根**的 `bili-cookie.txt`，一行即可：`SESSDATA=你的值`（粘贴完整 Cookie 字符串也支持）
+4. 重启 Harness（或重载插件）生效；验证：`node scripts\check-cookie.mjs`
 
-> 安全提示：Cookie 等价于你的登录态，只保存在本机该文件中，仅用于请求 B 站官方 API。不要提交到仓库、不要发给别人。删除文件即失效。
+> Cookie 等价于你的登录态：只存本机数据根该文件、只用于请求B站官方 API；勿提交仓库、勿发给别人。
 
-## 安装 / 卸载（历史说明，v3 起见文首「安装」节）
+### 5.2 node 不在 PATH
 
-- v3.0.0 起为标准 dsh bundle：patch 零绝对路径（挂载时经 `!!js` 从 profile 上下文解析），数据走 `BILI_DATA_ROOT`，安装/卸载见文首
-- 旧版（v2.x）本地安装型：`install_bundle` 指向源码目录 + 手改 patch 绝对路径——已被 v3 方案取代
+给 MCP 连接设环境变量 `BILI_NODE_PATH=<node.exe 绝对路径>`；或把 node 加进系统 PATH。
 
-## 已知限制与实现要点（v2）
+### 5.3 质量路线（medium 模型，可选）
 
-- **VAD 静音检测默认开启（v3.7 流水线，2026-10-03）**：Silero v6.2.0 模型（`tools/models/ggml-silero-v6.2.0.bin`，约 864KB）先扫音频标出语音区间，只把说话部分送 whisper——省 20~50% 转录时间并消除片头 BGM/静音段幻觉。安全参数：`-vp 200`（段首尾 padding 防吞字）、`-vmsd 25`（防超长段时间戳漂移）。配乐盖人声的视频（混剪/vlog）建议 `--no-vad` 或 `BILI_WHISPER_VAD=0`。`--suppress-nst`（非语音 token 抑制）恒开。
-- **快速路线 route=fast**：放弃全片自适应比对，改为转录驱动定点快取（语音时间点均匀取样+片尾帧，`-ss` 跳跃抽取不解码全片，帧上限 12）——总耗时约省 30~40%，适合快速了解/资讯速览；板书逐帧推演的课程仍用默认 balanced。
-- **下载/转录并行（v3.8，错峰版）**：**任何时刻只保持一条B站CDN连接**（实测双流并发会被CDN掐死音频流）——音频单连接先下→立即转录→视频流在转录期间（CPU 忙、无网络请求）下载，下载耗时被转录时间掩盖。`BILI_PARALLEL_DOWNLOAD=0` 禁用（回退串行）；无 yt-dlp 环境自动走 playurl 串行回退。
-- **长视频后台化（v3.8）**：分 P 时长 >30 分钟（`BILI_LONG_VIDEO_BG_SEC` 可调）时，MCP analyze 自动把任务转为 detached 后台进程（立即返回 pid/日志/bundle 路径），避免长转录撞工具调用超时被中断；`node scripts/analyze-status.mjs <BV号>` 查进度。CLI 加 `--bg` 强制后台。
-- **whisper 双进程分块并行（v3.9，质量门槛 A/B 全过后集成默认）**：≥8 分钟的视频自动把音频在静音点（silencedetect）切两半，两个 whisper 进程各 8 线程同时转录后拼接——19 分钟课程实测转录 206s→**126s（-39%）**，接缝零损伤、时间戳漂移 0.03s、内容字符级无损（+0.08%）。找不到静音切点（重配乐视频硬切风险高）自动回退单进程；`--no-dual` / `BILI_WHISPER_DUAL=0` 关闭，`--dual` / `=1` 强制（含硬切）。
-- **whisper `-p` 参数崩溃（已规避）**：v1.9.2 BLAS 版直接传 `-p` 会崩溃（中英文皆然，exit 0xC0000135）。实现改为把提示词写入 UTF-8 文件并用 ggml 的 `@response-file` 语法传入，再加 `--carry-initial-prompt` 全程携带偏置——中段术语正确率显著提升（如「函数几线」→「函数极限」），首尾仍可能有同音字残留。
-- **线程策略**：混合架构 CPU（如 i9-14900HX）上线程过大反而变慢（whisper.cpp #1282）。默认 `-t 8`（≥16 线程 CPU 时）+ `OPENBLAS_NUM_THREADS=8`；可用环境变量 `BILI_WHISPER_THREADS` 覆盖。
-- **课程抽帧不用相邻帧场景检测**：板书是逐帧渐进书写，相邻帧差值低于任何阈值，场景检测必然漏检。自适应模式改为：低帧率采样全片（约 300 候选）→ 与上一保留帧做字节差异比对 → 只保留画面真正变化的帧（每次板书重写都被捕捉）→ 均匀取样到上限。
-- **ASR 精度**：默认 `ggml-small.bin`；**质量路线默认 `ggml-medium.bin`**（Q3② A/B 拍板 2026-10-04：实体词同音字修复显著、实测耗时 ~2.3×、自带标点；`model=medium` 即启用，强制单进程防 OOM，繁→简已源级内置）。medium 模型 1.43GB 需自行下载至数据根 `tools/models/`（hf-mirror: ggerganov/whisper.cpp/ggml-medium.bin；setup-media 默认不下载）。口播偶有同音字误写仍可配合画面交叉校正。
-- **yt-dlp**：完全访问模式实测可用（2026.08.19，自动走 yt-dlp 下载+ffmpeg 合并）；受限沙箱内 PyInstaller 无法自建临时目录时自动回退 playurl 直连。
-- 弹幕接口单次最多约 1000~1200 条（热门池），不是全量弹幕。
-- 评论接口需要有效 SESSDATA；过期或风控（-352）时会返回明确错误。
-- B 站 AI 字幕匿名拿不到（需登录 Cookie）；无 Cookie 时字幕正文不可得，靠 whisper 转录兜底。
-- 安装时 profile 里有一个与本包无关的既有警告：`dsh-at-file: ctx.settings.register is not a function`，不影响本 MCP 连接。
+**收益（实测）**：专有名词错误明显减少（11 处修 7.5 处）、输出自带标点、课程术语更稳——代价是转录约慢 2.3 倍、多占 1.43GB 磁盘。平衡/快速档永远用 small，只有质量档用它。
 
-## 验证记录
-
-**v1（2026-10-02）**：bundle 安装 applied；7 工具注册；宿主诊断 yt-dlp/ffmpeg/whisper/模型全通；恐惧症视频端到端转录（3:05→62s）+ 抽帧画面与语音精确对应。
-
-**v2（2026-10-03 过夜优化）**：
-- 宋浩高数 P8（19:37）analyze 全链路：yt-dlp 下载合并 → whisper small 8线程+中文偏置 432 段（转录纯耗时 269s，含下载/帧/弹幕总 428s）→ 自适应抽帧 294 候选→20+1 帧（覆盖 00:00–19:32 全部板书重写，含最终完整板书）→ 成品 `lecture-notes.html`（29.9KB，图文内嵌+折叠全转录）
-- 章北海official《官媒点名批判…》（10:52，用户标杆导出的源视频）analyze：276 段/16 帧/360s → 成品 `video-digest.html`（三层信息密度/16条亮点带原话时间戳/5组Q&A/9条术语/13章节含广告位标注/3张核验配图），结构对齐标杆并修复其元信息缺失、时间戳不全、观点无归因三缺陷
-- `-p` 崩溃根因定位与 `@response-file` 规避实测（6 组对照实验）；假提速 bug（旧 transcript.json 复用）修复；`--carry-initial-prompt` + 学科词偏置实测生效
-
-## 更新 yt-dlp
+**三步启用**：
 
 ```powershell
-node scripts\fetch-ytdlp.mjs
+# ① 下载（约 1.43GB，hf-mirror 国内源）
+curl -L https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin -o "%USERPROFILE%\.dsh\bili-sum\tools\models\ggml-medium.bin"
+# ② 确认
+node scripts\doctor.mjs     # 看 "medium model (quality route)" 变 OK
+# ③ 用：对 agent 说「用质量档总结 BVxxxx」即可
 ```
+
+**不用配置的内置防护**（插件已处理）：长视频自动单进程防内存爆；繁体输出落盘前自动转简体；忘装模型时自动回退并标注。
+
+### 5.4 环境变量速查
+
+| 变量 | 默认 | 何时改 |
+|---|---|---|
+| `BILI_DATA_ROOT` | `<dsh家>\bili-sum` | 插件自动注入，一般不动 |
+| `BILI_NODE_PATH` | — | node 不在 PATH 时（§5.2） |
+| `BILI_SESSDATA` / `BILI_COOKIE` | — | 想用环境变量代替 cookie 文件 |
+| `BILI_WHISPER_VAD` | 开 | 配乐盖人声的视频（混剪/vlog）设 `0` 关掉，人声更完整 |
+| `BILI_WHISPER_DUAL` | 自动 | ≥6 分钟视频自动双进程提速；设 `0` 强制关（内存紧张时）；medium 本来就单进程 |
+| `BILI_WHISPER_THREADS` | 8 | 一般不动（实测加线程无收益） |
+| `BILI_LONG_VIDEO_BG_SEC` | 1800 | 超过 N 秒自动转后台跑，一般不动 |
+| `BILI_PARALLEL_DOWNLOAD` | 开 | 下载/转录错峰并行；设 `0` 关 |
+| `MCP_DEBUG` | — | 设 `1` 看 MCP 服务器日志 |
+
+### 5.5 更新工具链 / yt-dlp
+
+```powershell
+& scripts\setup-media.ps1    # 重跑即更新（已有文件自动跳过）
+node scripts\fetch-ytdlp.mjs # 只更新 yt-dlp
+```
+
+## 6. 故障排查
+
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| 安装报 `git: 'remote-https' is not a git command` | 本机 git 损坏 | 重装 Git for Windows，或改用本地 tarball 装法（§3.2） |
+| 安装报 `ERR_PNPM_MISSING_TARBALL_INTEGRITY` | URL 安装走网络缓存出错 | 用 `curl` 下载 tarball 后 target 填**本地文件**路径 |
+| 装完 MCP 工具不出现 | 连接未启动 | 看 Harness 插件面板 `dsh-bili-sum` 有无报错；重启 Harness；`doctor` 复检 |
+| 转录很慢/内存不足 | 长视频双进程吃内存 | 设 `BILI_WHISPER_DUAL=0`（medium 本来就是单进程） |
+| 笔记里视频不能小窗播放 | `file://` 无法带 Referer | 用本地小窗播放模式（§4.2 serve-notes） |
+| 笔记里视频变成B站 iframe | CDN 直链临时限流 | 正常现象，稍后重跑一次渲染即恢复 |
+| 评论工具报"需要登录" | 未配置 Cookie | 按 §5.1 配置 |
+| 安装时出现 `dsh-at-file` 警告 | 与本插件无关的其他插件问题 | 忽略，不影响本插件 |
+
+## 7. 实现要点（用户相关）
+
+- **VAD 静音检测默认开**：跳过静音/BGM 段，转录省 20~50% 时间且防"无人声幻觉"；配乐视频建议关（§5.4）
+- **快速 vs 平衡怎么选**：快速=定点截图省一半时间；板书类课程必须平衡（逐帧书写要全片比对）
+- **双进程提速**：≥6 分钟的视频自动把音频切两半并行转录（约省 40%）；找不到安全切点自动退回单进程，不用管
+- **线程数 8** 是实测最优（混合架构 CPU 加线程反而更慢），别乱动
+- **同音字**：ASR 偶有同音错误，渲染流程会按上下文自动校正，成品引语直接正确；关键处用画面截图交叉核实
+- **弹幕**：接口给的是热门池（约数百~三千条）不是全量；笔记里的弹幕精选只放"梗刷屏/观点反驳/实用指引/高赞神评"四类
+- **AI 字幕**：不是每个视频都有、且需登录 Cookie；没有就靠 whisper 转录兜底
+- **大文件不入库**：模型/工具链/产物全在数据根（§3.4），仓库只含代码与模板
+
+## 8. 安全与免责
+
+- 本项目使用 bilibili **非官方 API** 接口，仅供个人学习研究，与 bilibili 官方无关联；请遵守用户协议、勿高频请求
+- `bili-cookie.txt` 已被 .gitignore 排除且位于数据根（仓库外）；请勿提交或外传
+- 第三方组件均由 setup-media 引导你自行下载：whisper.cpp / Silero VAD（MIT）、ffmpeg（LGPL/GPL）、yt-dlp（Unlicense）——归属与许可见 `NOTICE`
+
+## 9. 开发
+
+```
+server.js / media.js / bili.js     # MCP 服务器 + 媒体流水线 + B站 API（零 npm 依赖）
+paths.js / zh-conv.js              # 数据根解析 / 繁→简转换
+scripts\                           # doctor、setup-media、analyze、render-notes、serve-notes、测试…
+templates\                         # 五模板骨架 + tsGal 运行时
+OUTPUT-STANDARDS.md                # 输出规格（路线/模板/深度，Q1–Q11 定稿）
+PRACTICE-NOTES.md                  # 作业手册（判型规则/标准作业/踩坑清单）
+```
+
+- 测试：`npm test`（三套回归：media 纯函数 / tsGal / 渲染器）
+- 三文档分工：**OUTPUT-STANDARDS=规格**（输出应该是什么）｜**PRACTICE-NOTES=作业**（怎么干）｜**CHANGELOG=版本史**（含验证记录）
+- 版本规则：semver——feature=minor、fix/docs=patch、破坏性调整=major
