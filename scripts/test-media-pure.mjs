@@ -53,6 +53,7 @@ ok(toSimplified('多次提到手機有國簿') === '多次提到手机有国簿'
 ok(toSimplified('這裡只是陳述事實') === '这里只是陈述事实', '陈述');
 ok(toSimplified('後續不排除會打官司，所有的聊天證據我都已經留存好了') === '后续不排除会打官司，所有的聊天证据我都已经留存好了', '长句批量');
 ok(toSimplified('简体文本不受影响') === '简体文本不受影响', '简体幂等');
+ok(toSimplified('請選擇相關記錄並繼續') === '请选择相关记录并继续', '审计补缺字抽查（選關錄繼）');
 ok(toSimplified('') === '' && toSimplified(null) === null && toSimplified(undefined) === undefined, '空值防御');
 
 console.log('== parseWhisperSegments ==');

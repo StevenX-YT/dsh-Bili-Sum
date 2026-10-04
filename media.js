@@ -501,6 +501,10 @@ export async function transcribe(input, { lang = 'zh', model = '', keepMedia = f
   return {
     bvid: info.bvid, page: p.page, part: p.part, title: info.title, url: info.url, duration: info.duration,
     language: lang, model: w.model, audioMethod: audio.method,
+    // 质量路线防呆（审计 2026-10-04）：请求模型缺失回退时显式标注
+    ...(w.model && w.model !== String(model || 'small')
+      ? { modelFallback: `requested ${model || 'small'} -> actual ${w.model}（模型文件缺失已回退；下载 ggml-${model}.bin 至数据根 tools/models/ 可启用）` }
+      : {}),
     segments: segs.length, elapsedSec: Math.round((Date.now() - t0) / 1000),
     previewLines: preview.length, preview,
     files: { transcriptTxt: txtPath, transcriptJson: w.jsonPath, meta: metaPath, workDir },
@@ -1018,6 +1022,10 @@ export async function analyze(input, { type = 'general', page, lang = 'zh', mode
       audioMethod: media.method, model: w.model, lang, threads: whisperThreads(),
       route: routeMode, vad: !!w.vad, whisperElapsedSec: w.whisperElapsedSec,
       dual: w.dual || null,
+      // 质量路线防呆（审计 2026-10-04）：请求的模型文件缺失而回退时显式记录，防质量档静默降级
+      ...(w.model && w.model !== String(model || 'small')
+        ? { modelFallback: `requested ${model || 'small'} -> actual ${w.model}（模型文件缺失已回退；下载 ggml-${model}.bin 至数据根 tools/models/ 可启用）` }
+        : {}),
       elapsedSec: Math.round((Date.now() - t0) / 1000), frameStrategy,
       whisperStderrTail: w.stderrTail || '',
     },

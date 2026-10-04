@@ -5,6 +5,25 @@
 > 2. **tsGal runtime**（templates/gallery-runtime.js）：组件独立版本（v1画廊→v2空降→v3小窗→v3.4字幕→v3.6去字幕），只在本文件附注，不与项目版本绑定
 > 3. **里程碑名**（三期提速/A-D期）：changelog 条目分组用，不是版本号
 
+## [3.1.1] — 2026-10-04
+
+全面审计轮（内容/功能/流程/质量路线隐患；用户委托重点=medium 新模型问题排查）：抓修 2 个真 bug + 2 项防呆加固，全部经实测复验。
+
+### Fixed
+- **serve-notes 插件布局失效**（真 bug）：静态根与笔记列表写死包目录 `output/`——数据根布局下列表为空、笔记 HTML/配图全部 404 → 改为 `/output/*` 映射数据根 `OUTPUT_DIR`（老布局行为不变），实测数据根笔记 200 直出
+- **zh-conv 映射缺口**（真隐患）：OpenCC TSCharacters 差集扫描发现 66 个常用繁字未入表（含真实语料实缺 9 字：問確繼辦進選錄間關）→ 补齐 66 对（全部经 OpenCC 值校验，冲突 0）
+
+### Added
+- **modelFallback 防呆**（质量路线隐患加固）：analyze/transcribe 请求的模型文件缺失而回退时，bundle/返回体显式记录 `requested X -> actual Y`——防质量档静默降级为 small
+- **doctor 增补 medium 检查项**（可选级）：ggml-medium.bin 缺失时给出下载指引（质量路线就绪度一眼可见）
+- 回归用例 +1（补缺字抽查），media 套件 42→43
+
+### 验证（审计实录）
+- 三方一致性：已装包 vs 工作区 vs GitHub——10 关键文件 SHA256 全同、语法 0 错、文件清单零差异
+- 质量路线端到端（19:37 高数课 BV1CAxaeHEeH?p=8，model=medium）：451s 单进程完成（**dual 门控运行时实证**：19:37≥6min 但 dual=null）、繁简转换覆盖 course 产物（残留 0）、462 段/22 帧/11 关键时刻、成品 lecture-notes.html 53.6KB 全区块渲染
+- OpenCC 对照：映射值冲突 0；serve-notes 修复后数据根笔记/配图实测 200
+- 三套回归 43+24+37 全绿
+
 ## [3.1.0] — 2026-10-04
 
 Q3② 质量路线接入 medium（用户拍板：**条件接入**；A/B 依据 `reports/2026-10-04-medium-ab-report.md`——实体词修复 7.5/11、耗时仅 2.27×、标点/分段跃升）。

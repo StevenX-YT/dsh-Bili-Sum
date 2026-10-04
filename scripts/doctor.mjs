@@ -2,7 +2,7 @@
 // 用法：node scripts/doctor.mjs [--json]
 // 退出码：0 = 核心就绪（可跑 analyze 全链路）；1 = 核心有缺失（打印修复指引）
 // 可选项（yt-dlp / silero VAD / cookie）缺失只警告不失败——流水线有对应回退。
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { PKG_ROOT, DATA_ROOT, OUTPUT_DIR, TOOLS_DIR, BIN_DIR, cookieFileCandidates } from '../paths.js';
 import { hostDiag, vadModelPath } from '../media.js';
@@ -33,6 +33,9 @@ const diag = await hostDiag();
 add('ffmpeg', !!diag.ffmpeg, diag.ffmpeg || `未找到（期望在 ${join(TOOLS_DIR, 'ffmpeg')}）`, 'node scripts/setup-media.ps1');
 add('whisper-cli', !!diag.whisperCli, diag.whisperCli || `未找到（期望在 ${join(TOOLS_DIR, 'whisper')}）`, 'node scripts/setup-media.ps1');
 add('whisper model', !!diag.model, diag.model || `未找到 ggml-small/base（期望在 ${join(TOOLS_DIR, 'models')}）`, 'node scripts/setup-media.ps1');
+const mediumBin = join(TOOLS_DIR, 'models', 'ggml-medium.bin');
+add('medium model (quality route)', existsSync(mediumBin), mediumBin,
+  '下载 ggml-medium.bin（1.43GB，hf-mirror: ggerganov/whisper.cpp）至数据根 tools/models/——缺失时 model=medium 回退 small（bundle 记 modelFallback）', true);
 add('yt-dlp', !!diag.ytdlp, diag.ytdlp ? `${diag.ytdlp} @ ${join(BIN_DIR, 'yt-dlp.exe')}` : `未找到（期望在 ${join(BIN_DIR, 'yt-dlp.exe')}）`,
   'node scripts/fetch-ytdlp.mjs', true);
 const silero = await vadModelPath();

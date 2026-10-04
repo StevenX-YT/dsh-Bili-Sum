@@ -11,8 +11,10 @@ import { createReadStream, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, extname, normalize, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
+import { PKG_ROOT, OUTPUT_DIR } from '../paths.js';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = PKG_ROOT;      // 包目录（代码资产，静态回退）
+const OUT = OUTPUT_DIR;      // 数据根 output（插件布局的笔记/配图所在地；老布局=包目录/output）
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -21,7 +23,7 @@ const MIME = {
 };
 
 function listNotes() {
-  const outDir = join(ROOT, 'output');
+  const outDir = OUT;
   const items = [];
   if (!existsSync(outDir)) return items;
   for (const d of readdirSync(outDir, { withFileTypes: true })) {
@@ -84,9 +86,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 静态文件
-  const fp = normalize(join(ROOT, decodeURIComponent(u.pathname)));
-  if (!fp.startsWith(ROOT) || !existsSync(fp) || !statSync(fp).isFile()) {
+  // 静态文件：/output/* 映射到数据根 output（插件布局关键修复），其余回退包目录
+  const raw = decodeURIComponent(u.pathname);
+  const isOut = raw.startsWith('/output/');
+  const base = isOut ? OUT : ROOT;
+  const rel = isOut ? raw.slice('/output/'.length) : raw.replace(/^\/+/, '');
+  const fp = normalize(join(base, rel));
+  if (!fp.startsWith(base) || !existsSync(fp) || !statSync(fp).isFile()) {
     res.writeHead(404); res.end('not found'); return;
   }
   res.writeHead(200, { 'Content-Type': MIME[extname(fp).toLowerCase()] || 'application/octet-stream' });
