@@ -12,7 +12,7 @@ import {
 import { transcribe, extractKeyframes, analyze, analyzeOrBackground, hostDiag } from './media.js';
 import { PKG_ROOT, DATA_ROOT, OUTPUT_DIR, TOOLS_DIR } from './paths.js';
 
-const SERVER_INFO = { name: 'bilibili', version: '3.0.0' };
+const SERVER_INFO = { name: 'bilibili', version: '3.1.0' };
 const DEBUG = !!process.env.MCP_DEBUG;
 
 function log(...args) {
@@ -101,7 +101,7 @@ const TOOLS = [
         lang: { type: 'string', description: '语音语言，默认 zh；其他语言传对应代码（en/ja 等）或 auto' },
         prompt: { type: 'string', description: 'whisper 领域词偏置（提准），如学科术语表；省略则不偏置' },
         threads: { type: 'number', description: 'whisper 线程数；省略自动按 CPU 分配' },
-        model: { type: 'string', enum: ['small', 'base', 'medium'], description: '模型规格，默认 small（中文效果与速度平衡）' },
+        model: { type: 'string', enum: ['small', 'base', 'medium'], description: '模型规格，默认 small（中文效果与速度平衡）；medium=质量路线默认（Q3②，慢~2.3×，自动禁双进程，繁→简源级内置）' },
         keepMedia: { type: 'boolean', description: '保留中间音频文件，默认 false（成功后删除）' },
       },
       required: ['bvid'],
@@ -142,7 +142,7 @@ const TOOLS = [
         route: { type: 'string', enum: ['balanced', 'fast'], description: '总结路线：balanced=默认（全片比对抽帧）；fast=快速（转录驱动定点快取，帧上限12，总耗时约省30-40%）' },
         page: { type: 'number', description: '分 P 序号；省略取链接 ?p=N，默认 1' },
         lang: { type: 'string', description: '语音语言，默认 zh' },
-        model: { type: 'string', enum: ['small', 'base', 'medium'], description: '转录模型，默认 small' },
+        model: { type: 'string', enum: ['small', 'base', 'medium'], description: '转录模型，默认 small；medium=质量路线默认（Q3② 拍板：慢~2.3×，自动禁双进程防 OOM，繁→简源级内置）' },
         prompt: { type: 'string', description: '自定义 whisper 领域词偏置；省略时 lecture 用内置学科词表' },
         maxFrames: { type: 'number', description: 'smart 抽帧上限，默认 20' },
         vad: { type: 'boolean', description: 'VAD 静音检测（跳过静音/BGM 段，省时且消除幻觉），默认 true' },

@@ -3,6 +3,7 @@
 // 背景：2026-10-03 实战抓到 analyze 引用未定义变量（语法检查查不出、运行才炸），
 // 本测试锁定纯函数行为，防参数重构再引入同类回归。
 import { durToSec, pageDurationSec, shouldUseDual, parseWhisperSegments, findKeyMoments, LECTURE_PROMPT } from '../media.js';
+import { toSimplified } from '../zh-conv.js';
 
 let pass = 0, fail = 0;
 const ok = (cond, name, extra = '') => {
@@ -34,6 +35,25 @@ ok(shouldUseDual(undefined, false, 9999) === false, '显式参数 false 覆盖�
 ok(shouldUseDual('0', true, 9999) === true, '显式参数 true 覆盖 env=0');
 ok(shouldUseDual('1', false, 9999) === false, '显式参数 false 覆盖 env=1');
 ok(shouldUseDual(undefined, undefined, NaN) === false, '异常时长不启用');
+// Q3② 门控（medium A/B 报告 §四，2026-10-04）：非 small/base 模型一律单进程，env/显式参数也不例外
+ok(shouldUseDual(undefined, undefined, 1177, 'medium') === false, 'medium：长视频也不双进程（OOM 门控）');
+ok(shouldUseDual('1', undefined, 1177, 'medium') === false, 'medium：env=1 也强制单进程');
+ok(shouldUseDual(undefined, true, 1177, 'medium') === false, 'medium：显式 true 也强制单进程');
+ok(shouldUseDual(undefined, undefined, 1177, 'large-v3') === false, 'large-v3：同门控');
+ok(shouldUseDual(undefined, undefined, 1177, 'small') === true, 'small：门控不影响既有行为');
+ok(shouldUseDual(undefined, undefined, 1177, 'base') === true, 'base：门控不影响既有行为');
+ok(shouldUseDual(undefined, undefined, 1177, '') === true, '空模型名回退 small 判定');
+
+console.log('== toSimplified（源级繁→简，Q3② medium 配套）==');
+ok(toSimplified('家人們，我被發律師函了') === '家人们，我被发律师函了', '样例句转简（A/B medium 实测输出）');
+ok(toSimplified('今天跟大家講10月4日天津漫展事件') === '今天跟大家讲10月4日天津漫展事件', '讲/漫展');
+ok(toSimplified('在未跟我有任何溝通的情況下') === '在未跟我有任何沟通的情况下', '沟通');
+ok(toSimplified('介紹買手機贈送漫展嘉賓簽售卷的活動') === '介绍买手机赠送漫展嘉宾签售卷的活动', '介绍/手机/嘉宾（卷为ASR错字不属转换）');
+ok(toSimplified('多次提到手機有國簿') === '多次提到手机有国簿', '国（簿为ASR错字不属转换）');
+ok(toSimplified('這裡只是陳述事實') === '这里只是陈述事实', '陈述');
+ok(toSimplified('後續不排除會打官司，所有的聊天證據我都已經留存好了') === '后续不排除会打官司，所有的聊天证据我都已经留存好了', '长句批量');
+ok(toSimplified('简体文本不受影响') === '简体文本不受影响', '简体幂等');
+ok(toSimplified('') === '' && toSimplified(null) === null && toSimplified(undefined) === undefined, '空值防御');
 
 console.log('== parseWhisperSegments ==');
 const ms = parseWhisperSegments({ transcription: [{ offsets: { from: 3960, to: 5230 }, text: ' 你好 ' }, { offsets: { from: 1, to: 2 }, text: '' }] });

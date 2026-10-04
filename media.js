@@ -9,6 +9,7 @@ import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { videoInfo, resolveId, UA, YTDLP, ytdlpVersion, getBuvid, getCookie, fmtTs, getDanmaku } from './bili.js';
 import { PKG_ROOT, DATA_ROOT, TOOLS_DIR, OUTPUT_DIR, YTDLP_TMP } from './paths.js';
+import { toSimplified } from './zh-conv.js';
 
 // 路径解耦（插件化）：运行时数据（output/tools/bin）经 BILI_DATA_ROOT 解析（dsh patch 注入数据根），
 // 未设置时回退包目录——老布局完全兼容。代码资产（scripts/templates）恒在包内（PKG_ROOT）。
@@ -481,7 +482,8 @@ export async function transcribe(input, { lang = 'zh', model = '', keepMedia = f
   const wav = await toWav(audio.path, workDir);
   const w = await runWhisper(wav, workDir, { lang, modelName: model, prompt, threads, vad });
   const raw = JSON.parse(await readFile(w.jsonPath, 'utf8'));
-  const segs = parseWhisperSegments(raw);
+  // 源级繁→简静默校正（Q3② medium 接入配套）：medium/large 常输出繁体，落盘前统一转简
+  const segs = parseWhisperSegments(raw).map((s) => ({ ...s, text: toSimplified(s.text) }));
   const txt = segs.map((s) => `[${fmtTs(s.from)}] ${s.text}`).join('\n');
   const txtPath = join(workDir, 'transcript.txt');
   await writeFile(txtPath, txt, 'utf8');
@@ -775,9 +777,13 @@ export function pageDurationSec(info, page) {
   return durToSec(p?.duration || info.duration);
 }
 
-// 双进程启用决策（纯函数，可单测）：envVal=环境变量原值，optDual=显式参数（true/false/undefined），durSec=分P时长秒
+// 双进程启用决策（纯函数，可单测）：envVal=环境变量原值，optDual=显式参数（true/false/undefined），durSec=分P时长秒，model=转录模型
 // 优先级：optDual 显式 > env 强制(1/0) > 自动规则（≥6min，2026-10-03 由 480s 降为 360s——治 7:48 视频差12s吃不到双进程）
-export function shouldUseDual(envVal, optDual, durSec) {
+// Q3② 门控（medium A/B 报告 §四，2026-10-04）：medium/large 单进程峰值 ~2GB，双进程在 8GB 级机器必 OOM
+// ——非 small/base 一律单进程，env/显式参数也不例外（防 C 期 OOM 事故复现）。
+export function shouldUseDual(envVal, optDual, durSec, model = '') {
+  const m = String(model || 'small');
+  if (m !== 'small' && m !== 'base') return false;
   let useDual;
   if (envVal === '1') useDual = true;
   else if (envVal === '0') useDual = false;
@@ -934,7 +940,7 @@ export async function analyze(input, { type = 'general', page, lang = 'zh', mode
   // ⑦ 双进程分块并行：质量门槛 A/B 全过（2026-10-03，接缝零损伤/漂移0.03s/提速39%）→ 集成默认路径。
   // 自动规则：视频 ≥8min 且能找到静音切点（找不到时 runWhisperDual 内部自动回退单进程）。
   // 开关：BILI_WHISPER_DUAL=0 关闭 / =1 强制（含硬切）；route 参数 dual:true/false 显式控制
-  const useDual = shouldUseDual(process.env.BILI_WHISPER_DUAL, dual, pageDurationSec(info, p.page));
+  const useDual = shouldUseDual(process.env.BILI_WHISPER_DUAL, dual, pageDurationSec(info, p.page), model);
   const wOpts = {
     lang, modelName: model, threads: whisperThreads(), vad,
     prompt: prompt || (type === 'lecture' ? LECTURE_PROMPT : ''),
@@ -943,7 +949,8 @@ export async function analyze(input, { type = 'general', page, lang = 'zh', mode
     ? await runWhisperDual(media.wavPath, workDir, wOpts)
     : await runWhisper(media.wavPath, workDir, wOpts);
   const raw = JSON.parse(await readFile(w.jsonPath, 'utf8'));
-  const segs = parseWhisperSegments(raw);
+  // 源级繁→简静默校正（Q3② medium 接入配套）：medium/large 常输出繁体，转 brief/transcript 前统一转简
+  const segs = parseWhisperSegments(raw).map((s) => ({ ...s, text: toSimplified(s.text) }));
   const txt = segs.map((s) => `[${fmtTs(s.from)}] ${s.text}`).join('\n');
   await writeFile(join(workDir, 'transcript.txt'), txt, 'utf8');
 

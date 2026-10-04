@@ -141,7 +141,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force
 - **whisper `-p` 参数崩溃（已规避）**：v1.9.2 BLAS 版直接传 `-p` 会崩溃（中英文皆然，exit 0xC0000135）。实现改为把提示词写入 UTF-8 文件并用 ggml 的 `@response-file` 语法传入，再加 `--carry-initial-prompt` 全程携带偏置——中段术语正确率显著提升（如「函数几线」→「函数极限」），首尾仍可能有同音字残留。
 - **线程策略**：混合架构 CPU（如 i9-14900HX）上线程过大反而变慢（whisper.cpp #1282）。默认 `-t 8`（≥16 线程 CPU 时）+ `OPENBLAS_NUM_THREADS=8`；可用环境变量 `BILI_WHISPER_THREADS` 覆盖。
 - **课程抽帧不用相邻帧场景检测**：板书是逐帧渐进书写，相邻帧差值低于任何阈值，场景检测必然漏检。自适应模式改为：低帧率采样全片（约 300 候选）→ 与上一保留帧做字节差异比对 → 只保留画面真正变化的帧（每次板书重写都被捕捉）→ 均匀取样到上限。
-- **ASR 精度**：默认 `ggml-small.bin`。口播偶有同音字误写——工作流用板书画面交叉校正（勘误表）。追求更准可放 `ggml-medium.bin` 进 `tools/models/`（CPU 上速度约 1/3~1/4，建议仅高价值内容）。
+- **ASR 精度**：默认 `ggml-small.bin`；**质量路线默认 `ggml-medium.bin`**（Q3② A/B 拍板 2026-10-04：实体词同音字修复显著、实测耗时 ~2.3×、自带标点；`model=medium` 即启用，强制单进程防 OOM，繁→简已源级内置）。medium 模型 1.43GB 需自行下载至数据根 `tools/models/`（hf-mirror: ggerganov/whisper.cpp/ggml-medium.bin；setup-media 默认不下载）。口播偶有同音字误写仍可配合画面交叉校正。
 - **yt-dlp**：完全访问模式实测可用（2026.08.19，自动走 yt-dlp 下载+ffmpeg 合并）；受限沙箱内 PyInstaller 无法自建临时目录时自动回退 playurl 直连。
 - 弹幕接口单次最多约 1000~1200 条（热门池），不是全量弹幕。
 - 评论接口需要有效 SESSDATA；过期或风控（-352）时会返回明确错误。

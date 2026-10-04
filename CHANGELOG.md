@@ -5,6 +5,22 @@
 > 2. **tsGal runtime**（templates/gallery-runtime.js）：组件独立版本（v1画廊→v2空降→v3小窗→v3.4字幕→v3.6去字幕），只在本文件附注，不与项目版本绑定
 > 3. **里程碑名**（三期提速/A-D期）：changelog 条目分组用，不是版本号
 
+## [3.1.0] — 2026-10-04
+
+Q3② 质量路线接入 medium（用户拍板：**条件接入**；A/B 依据 `reports/2026-10-04-medium-ab-report.md`——实体词修复 7.5/11、耗时仅 2.27×、标点/分段跃升）。
+
+### Added
+- **zh-conv.js 源级繁→简**：常用字映射表，transcribe/analyze 转录落盘前统一转简（medium/large 繁体输出场景；简体幂等；表外生僻字仍由 agent 渲染侧静默校正兜底）
+- 回归测试 +16 项（双进程模型门控 7 项 + toSimplified 9 项），media 套件 26→42 全绿
+
+### Changed
+- **shouldUseDual 按模型门控**：非 small/base 一律单进程（medium/large 单进程峰值 ~2GB，双进程在 8GB 级机器必 OOM——A/B 报告 §四工程发现；env/显式参数也不例外）
+- **质量档 medium 默认**（OUTPUT-STANDARDS §2.1/§5/§7 已修订并记变更）：analyze/transcribe `model=medium` 即走质量路线；模型 1.43GB 需自放数据根 `tools/models/`（setup-media 默认不下载）
+- server.js 工具描述同步（model 参数质量档说明）；package.json files 白名单补 zh-conv.js
+
+### 验证
+- 三套回归 42+24+37 全绿；medium A/B 全量数据与逐项对照见报告；繁→简转换以 A/B medium 实测输出句为用例锁定
+
 ## [3.0.0] — 2026-10-04
 
 插件化轮：dsh-Bili-Sum 正式插件包（GitHub 发布）。semver major=数据根迁移+包名+patch 重写（破坏性调整）。
