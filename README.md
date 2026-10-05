@@ -240,6 +240,6 @@ OUTPUT-STANDARDS.md                # 输出规格（路线/模板/深度，Q1–
 PRACTICE-NOTES.md                  # 作业手册（判型规则/标准作业/踩坑清单）
 ```
 
-- 测试：`npm test`（三套回归：media 纯函数 / tsGal / 渲染器）
+- 测试：`npm test`（四套回归：server-usage 配方可见性 24 / media 纯函数 51 / tsGal 31 / 渲染器 52）
 - 三文档分工：**OUTPUT-STANDARDS=规格**（输出应该是什么）｜**PRACTICE-NOTES=作业**（怎么干）｜**CHANGELOG=版本史**（含验证记录）
 - 版本规则：semver——feature=minor、fix/docs=patch、破坏性调整=major
