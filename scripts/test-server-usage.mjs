@@ -120,6 +120,12 @@ t('v3.4.3：qa 字段语义内联 + 反搜寻纪律（session-5f1f92ff 标签回
   has(USAGE_MANUAL, ['勿拼答案', '填内容不填「视频中提到」字面标签'], 'USAGE_MANUAL');
 });
 
+t('v3.4.4：首装工具链引导（instructions/描述/手册三处）', () => {
+  has(SERVER_INSTRUCTIONS, ['首装工具链', 'setup-media.ps1', '700MB', 'doctor.mjs'], 'INSTRUCTIONS');
+  has(A(), ['【首装】', 'setup-media.ps1', '勿自行下载二进制'], 'analyze');
+  has(USAGE_MANUAL, ['首装工具链', 'setup-media.ps1'], 'USAGE_MANUAL');
+});
+
 t('usage 手册含过程纪律节（双实证引用）', () => {
   has(USAGE_MANUAL, ['过程纪律', 'session-7be58aa2', 'session-ee6408ef', '查进程', '文件优先', '_draft-content.json', '禁止调用工具', 'create_goal', 'web_search'], 'USAGE_MANUAL');
 });
