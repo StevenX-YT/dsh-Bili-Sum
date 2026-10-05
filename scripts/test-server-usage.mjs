@@ -103,7 +103,7 @@ t('SERVER_INSTRUCTIONS 含流程+过程纪律+边界三段', () => {
 });
 
 t('SERVER_INSTRUCTIONS 含 v3.4.0 文件优先/恢复陷阱/goal 保险/草稿流', () => {
-  has(SERVER_INSTRUCTIONS, ['文件优先', '_draft-content.json', '禁止调用工具', 'create_goal', 'update_goal'], 'INSTRUCTIONS');
+  has(SERVER_INSTRUCTIONS, ['文件优先', '_draft-content.json', '禁止调用工具', 'create_goal', 'update_goal', '照抄=违规'], 'INSTRUCTIONS');
 });
 
 t('SERVER_INSTRUCTIONS 保持精简（<6000 字符，32KB 字节预算内）', () => {

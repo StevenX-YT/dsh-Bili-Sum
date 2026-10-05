@@ -954,7 +954,7 @@ export function buildDraftContent(segs = [], keyMoments = [], danmakuSignals = n
     ...((danmakuSignals?.sample) || []).slice(0, 10),
   ].map((d) => ({ cat: '', ts: fmtTs(d.t), text: String(d.text || '') }));
   return {
-    _note: '机器草稿（analyze 生成；renderer 不读取）。agent 任务：以此为底校正同音字、筛选合并、补全 qa/terms/attribution 等字段后写 content.json。草稿候选可超量；成稿条数按 Q4 时长档区间收口。',
+    _note: '机器草稿（analyze 生成；renderer 不读取）。agent 任务：以此为底校正同音字、筛选合并、补全 qa/terms/attribution 等字段后写 content.json。「」引文必须逐条对 brief.md 转录校正后才可入稿——草稿原话含 ASR 错字，照抄=违规。草稿候选可超量；成稿条数按 Q4 时长档区间收口。',
     highlights, chapters, dm,
   };
 }

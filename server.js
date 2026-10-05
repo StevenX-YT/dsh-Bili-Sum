@@ -15,7 +15,7 @@ import {
 import { transcribe, extractKeyframes, analyze, analyzeOrBackground, hostDiag } from './media.js';
 import { PKG_ROOT, DATA_ROOT, OUTPUT_DIR, TOOLS_DIR } from './paths.js';
 
-const SERVER_INFO = { name: 'bilibili', version: '3.4.0' };
+const SERVER_INFO = { name: 'bilibili', version: '3.4.1' };
 const DEBUG = !!process.env.MCP_DEBUG;
 
 function log(...args) {
@@ -77,7 +77,7 @@ info 资讯：flash、wh{when,where,who,what,why,how}、data[{k,v,ts}]、timelin
 
 ## 过程纪律（实证教训：session-7be58aa2 违反以下各条，17 分钟视频拖到 38 分钟；session-ee6408ef 触发恢复陷阱，成品零落盘）
 - 文件优先：content.json 是唯一交付载体；禁止把笔记内容写进思考或聊天正文（输出截断会触发「禁止调用工具」恢复，聊天文本救不回成品）
-- 读完 brief.md + _draft-content.json（analyze 生成的机器草稿）后尽快落盘 content.json 初稿再完善；不要在思考里预写全文或逐行校对转录
+- 读完 brief.md + _draft-content.json（analyze 生成的机器草稿）后尽快落盘 content.json 初稿再完善；不要在思考里预写全文或逐行校对转录。**「」引文必须逐条对转录校正后才可入稿——草稿原话含 ASR 错字，照抄=违规**
 - 禁止分析期间查进程/读脚本或渲染器源码/反复列目录/重读 bundle.json——analyze 返回什么就用什么
 - reasoning 保持精简：不逐步播报计划、不复述转录；引用「」原话时内联静默校正一次完成
 - balanced/快速档不做帧级核验（帧核验是质量档 model=medium 的职责）；仅当 1-2 条关键引用在转录里明显损坏时允许 read_image 单帧核对画面文字
@@ -100,7 +100,7 @@ export const SERVER_INSTRUCTIONS = `dsh-Bili-Sum 视频图文笔记流水线。�
 【标准流程】
 1) mcp__bilibili__analyze（用户说「平衡」或未指定路线=route balanced；课程/板书课加 type=lecture）→ 返回 workDir、brief.md 与 _draft-content.json（机器草稿）；前台运行需数分钟，安静等待，勿中途干预
 2) 读 workDir/brief.md + _draft-content.json 两个文件即可（素材与候选草稿都在；勿读 bundle/脚本源码、勿查进程）
-3) 回显一行判型「识别为：XX模板（可说 YY 覆盖）」→ 以草稿为底写 workDir/content.json：校正同音字、筛选合并（草稿候选可超量，成稿按条数口诀收口）、补全 qa/terms/attribution 等缺失字段。schema 见 analyze 描述或资源 usage://dsh-bili-sum
+3) 回显一行判型「识别为：XX模板（可说 YY 覆盖）」→ 以草稿为底写 workDir/content.json：校正同音字、筛选合并（草稿候选可超量，成稿按条数口诀收口）、补全 qa/terms/attribution 等缺失字段。**「」引文必须逐条对 brief.md 转录校正后才可入稿——草稿原话含 ASR 错字，照抄=违规**。schema 见 analyze 描述或资源 usage://dsh-bili-sum
 4) node scripts/render-notes.mjs <workDir> --template digest|lecture|tutorial|share|info → present 成品
 
 【过程纪律——违反会把 3 分钟拖成 40 分钟（真实教训，均有会话实证）】
