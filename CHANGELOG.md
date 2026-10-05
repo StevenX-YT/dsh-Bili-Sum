@@ -5,6 +5,10 @@
 > 2. **tsGal runtime**（templates/gallery-runtime.js）：组件独立版本（v1画廊→v2空降→v3小窗→v3.4字幕→v3.6去字幕），只在本文件附注，不与项目版本绑定
 > 3. **里程碑名**（三期提速/A-D期）：changelog 条目分组用，不是版本号
 
+## [3.4.4] — 2026-10-05
+
+首装工具链引导（新用户验收前最后一块真空档）。新环境首次 analyze 若缺 ffmpeg/whisper/silero（~700MB 需 setup-media.ps1 一次性安装），此前 agent 只能把原始报错转述给用户、无引导可循——现在 instructions（新增【首装工具链】段）、analyze 描述（【首装】行）、usage 手册（首装节）三处内联引导：「引导用户在插件目录执行 Set-ExecutionPolicy -Scope Process Bypass -Force; & scripts\setup-media.ps1（已装自动跳过）后重跑 analyze；勿自行下载二进制；自检 doctor.mjs」。回归 +1（三处标记锁定），四套 **23+51+31+52** 全绿；装机验证 instructions 1605ch 含首装段（main=`c8671f9`）。
+
 ## [3.4.3] — 2026-10-05
 
 Q&A 字段语义修复（session-5f1f92ff 验收会话发现；v3.4.x 机制验收通过后的首个内容质量 bug）。**验收结论**：21:28 视频 15.4 分钟端到端交付——create_goal→analyze 488s 未掐断→读 brief+草稿→写 content.json→渲染→present→update_goal complete 全链路闭环，恢复陷阱未触发，思考总量 34k/28 块（此前单块 45k），无查进程/无 web_search。
