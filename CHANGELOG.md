@@ -5,6 +5,34 @@
 > 2. **tsGal runtime**（templates/gallery-runtime.js）：组件独立版本（v1画廊→v2空降→v3小窗→v3.4字幕→v3.6去字幕），只在本文件附注，不与项目版本绑定
 > 3. **里程碑名**（三期提速/A-D期）：changelog 条目分组用，不是版本号
 
+## [3.3.0] — 2026-10-05
+
+新会话流畅性轮（「让新用户流畅使用插件」专项；v3.2.1 配方可见性之后的第二层修复）。**实证驱动**：解剖问题会话 `session-7be58aa2`（新会话「平衡，总结BV…」，16:39 视频跑了 38.5 分钟、119k 输出 token），根因三条全部坐实——
+
+**会话法证结论（session.v4.jsonl.zstd 分帧解码，101 帧→1.9MB）：**
+- ✅ v3.2.1 配方本身生效了：agent 第 59 秒就读了 usage 资源、analyze 参数正确
+- ❌ **根因①**：mcp-client 默认 `toolCallTimeoutMs=60s`，analyze 机器耗时 283s → 调用被掐断但服务器继续跑 → agent 误判失败进入恐慌排查（查进程/读脚本源码/挂监控 job/重读 bundle）
+- ❌ **根因②**：配方只写了「产出什么」没写「过程纪律」——agent 把 debug 模式的帧核验（7 次 read_image）、web_search 校名、逐行错别字校对全部带进了快速交付模式
+- ❌ **根因③**：思考无节制——单个 reasoning 块 72,954 字符（逐行校对转录+全文规划），烧光回合预算导致用户被迫输入「继续」
+
+### Added
+- **`initialize.instructions` 系统提示词注入（根治层）**：server.js 响应 MCP initialize 时携带 992 字符过程契约，harness 经 `systemPrompt.section(mcp:bilibili)` 注入每个会话（官方通道，32KB 预算）——标准流程四步 + 过程纪律五条反模式（禁查进程/禁读源码/禁复述转录/禁播报/禁 web_search 校名/balanced 档不帧核验）+ 边界声明（只约束过程，不改输出标准）。配方随插件连接走，不依赖 agent 主动读资源
+- **analyze 返回体 `next` 字段**：决策点即时指令——前台结果带五步下一步+纪律摘要；后台结果带 analyze-status 查 state 指引。读完 brief 的那一刻是注意力最高点，指令在此处落位
+- 描述/手册补【过程纪律】反模式清单（analyze 描述一行版 + usage 手册完整版含实证引用）
+
+### Fixed
+- **`toolCallTimeoutMs: 900000`（cordis.patch.yml）**：mcp-client 默认 60s 掐断分钟级 analyze 是恐慌排查连锁的直接触发器；15 分钟覆盖 30 分钟内视频最坏前台耗时（>30min 本就自动转后台即时返回）。注释中记录实证依据
+- 重装源从 `%TEMP%` 改为持久路径 `~\.dsh\artifacts\`（TEMP 清理会断档 lockfile 引用——v3.2.1 遗留隐患顺手修掉）
+
+### 验证
+- 四套回归全绿：server-usage **20**（+6 项锁定 instructions/纪律/超时）+ media **43** + tsGal **31** + render **47**
+- 装机副本冒烟：v3.3.0 / initialize.instructions 992ch 含纪律段 / resources 正常 / patch 含 timeout
+- 输出标准零改动：条数区间/硬保底/归因/静默校正全部原样（用户红线）
+
+### 备查
+- 备份三重：工作区 `bilibili-mcp-backup-v3.2.1-20261005-pristine` + 装机副本与 tarball 在 `~\.dsh\bili-sum\backups\` + GitHub `6bbbb33`
+- 会话解码工具：`_decode-session.mjs`（zstd 帧魔数扫描逐帧解码）——DSH 会话取证可复用
+
 ## [3.2.1] — 2026-10-05
 
 修复「新会话配方缺失」bug（HANDOFF 待办 #1，方案 A+B）：新会话 agent 只拿到旧版 analyze 描述（仅「渲染前用 read_image」），无任何交付方法 → 绕过插件管线手写 HTML，成品无模板/tsGal/静默校正。

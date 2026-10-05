@@ -1,9 +1,15 @@
-// scripts/test-server-usage.mjs — 「新会话配方缺失」修复回归（HANDOFF 待办 #1，方案 A+B）
+// scripts/test-server-usage.mjs — 「新会话配方缺失」修复回归（HANDOFF 待办 #1，方案 A+B+C）
 // 锁定：① analyze/transcribe 工具描述内联标准作业（brief→content.json→render→present、判型、
-// 五模板字段全名、硬保底、Q4 条数口诀）② MCP resources usage://dsh-bili-sum list/read 实现。
-// 断言的是「配方可见性」——改 server.js 描述或资源文本时，漏掉关键标记即红。
+// 五模板字段全名、硬保底、Q4 条数口诀）② MCP resources usage://dsh-bili-sum list/read 实现
+// ③ v3.3.0 流畅性轮：initialize.instructions 过程契约注入 + 过程纪律反模式 + 超时配置。
+// 断言的是「配方可见性与过程纪律」——改 server.js/patch 时漏掉关键标记即红。
 import { strict as assert } from 'node:assert';
-import { TOOLS, USAGE_URI, USAGE_MANUAL, dispatch } from '../server.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+import { TOOLS, USAGE_URI, USAGE_MANUAL, SERVER_INSTRUCTIONS, dispatch } from '../server.js';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 let pass = 0; let fail = 0;
 const t = (name, fn) => { try { fn(); pass++; console.log(`  ok ${name}`); } catch (e) { fail++; console.log(`  FAIL ${name}: ${e.message}`); } };
@@ -80,6 +86,38 @@ await ta('resources/read 未知 URI 报 -32002', async () => {
     () => dispatch({ method: 'resources/read', params: { uri: 'usage://nope' } }),
     (e) => e.code === -32002
   );
+});
+
+// ---- v3.3.0 流畅性轮（session-7be58aa2 实证驱动）----
+
+await ta('initialize 响应含 instructions 字段（systemPrompt 注入通道）', async () => {
+  const r = await dispatch({ method: 'initialize', params: { protocolVersion: '2024-11-05' } });
+  assert.equal(typeof r.instructions, 'string');
+  assert.ok(r.instructions.includes('标准流程'), 'instructions 缺标准流程');
+});
+
+t('SERVER_INSTRUCTIONS 含流程+过程纪律+边界三段', () => {
+  has(SERVER_INSTRUCTIONS, ['标准流程', 'analyze', 'brief.md', 'content.json', 'render-notes.mjs', 'present'], 'INSTRUCTIONS');
+  has(SERVER_INSTRUCTIONS, ['过程纪律', '查进程', '播报', '复述转录', '错别字', 'web_search', '帧级核验', 'analyze-status'], 'INSTRUCTIONS');
+  has(SERVER_INSTRUCTIONS, ['不改任何输出标准', 'usage://dsh-bili-sum'], 'INSTRUCTIONS');
+});
+
+t('SERVER_INSTRUCTIONS 保持精简（<6000 字符，32KB 字节预算内）', () => {
+  assert.ok(SERVER_INSTRUCTIONS.length < 6000, `实际 ${SERVER_INSTRUCTIONS.length} 字符`);
+  assert.ok(Buffer.byteLength(SERVER_INSTRUCTIONS, 'utf8') < 12000, 'UTF-8 字节数超预算');
+});
+
+t('analyze 描述含过程纪律反模式清单', () => {
+  has(A(), ['过程纪律', '不复述转录', '不播报', '不 web_search', '帧核验'], 'analyze');
+});
+
+t('usage 手册含过程纪律节（实证教训引用）', () => {
+  has(USAGE_MANUAL, ['过程纪律', 'session-7be58aa2', '查进程', '错别字校对轮', 'web_search'], 'USAGE_MANUAL');
+});
+
+t('cordis.patch.yml 配置 toolCallTimeoutMs=900000（默认60s会掐断analyze）', () => {
+  const yml = readFileSync(join(ROOT, 'cordis.patch.yml'), 'utf8');
+  assert.ok(yml.includes('toolCallTimeoutMs: 900000'), 'patch 缺 toolCallTimeoutMs');
 });
 
 console.log(`server-usage: ${pass} 通过, ${fail} 失败`);

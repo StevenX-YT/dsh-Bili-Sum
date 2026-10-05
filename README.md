@@ -1,6 +1,6 @@
 # dsh-Bili-Sum — B站视频理解流水线（DeepSeek Harness 插件）
 
-> 当前版本：**v3.2.1**（版本历史见 `CHANGELOG.md`；tsGal 交互层 v3.6 独立版本）
+> 当前版本：**v3.3.0**（版本历史见 `CHANGELOG.md`；tsGal 交互层 v3.6 独立版本）
 > 许可证：Apache-2.0（第三方组件归属见 `NOTICE`）｜仓库：https://github.com/StevenX-YT/dsh-Bili-Sum
 
 **一句话**：给 DeepSeek Harness 装上"B站视频理解"能力——对 agent 说一个 BV 号，它就把视频**听懂、看懂、整理成带时间戳的图文笔记**交付给你；点笔记里的蓝色时间戳，右下角小窗直接播 B 站原视频的对应片段。
@@ -32,7 +32,9 @@ dsh-Bili-Sum 就是干这个的：它把视频**转成文字稿 + 关键画面�
 
 支持的输入：`BV号` / `av号` / 完整视频链接（可带 `?p=N` 选分P）/ b23.tv 短链。
 
-除工具外还提供 MCP **资源** `usage://dsh-bili-sum`：标准作业手册精简版（判型规则 / content.json 字段全名 / 渲染命令 / 硬保底 / 条数口诀 / 交付检查表）。`analyze` 工具描述本身也内联了这套配方——任何新会话的 agent 不依赖工作区文档即可产出标准成品（v3.2.1 修复「新会话配方缺失」）。
+除工具外还提供 MCP **资源** `usage://dsh-bili-sum`：标准作业手册精简版（判型规则 / content.json 字段全名 / 渲染命令 / 硬保底 / 条数口诀 / 过程纪律 / 交付检查表）。
+
+**新会话开箱即用（v3.3.0）**：插件连接时自动向 agent 注入一份简短的「标准流程 + 过程纪律」契约（MCP instructions → 系统提示词，对会话零配置生效）——对 agent 说「平衡，总结BV…」即可，它会直接走 analyze → brief → content.json → 渲染 → present 的标准管线，不会查进程、读源码或做多余的逐帧校对。analyze 的调用超时已配至 15 分钟，长分析不会被误判失败。
 
 ### 2.2 三条路线（深度不同，准确度同样有保障）
 

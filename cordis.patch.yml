@@ -3,6 +3,11 @@
 #   server.js / cwd -> the installed package dir under this profile's node_modules
 #   BILI_DATA_ROOT  -> <dsh home>/bili-sum  (runtime data: output / tools / bin / cookie)
 # node: resolved from PATH; set env BILI_NODE_PATH to an absolute node path when PATH lacks it.
+# toolCallTimeoutMs: mcp-client default is only 60s, but foreground analyze measurably
+#   runs for minutes. The timeout kills the CALL while the server keeps running, so the
+#   agent misreads failure and enters panic-debugging (session-7be58aa2 evidence:
+#   60s cutoff -> process checks / source reads / watcher jobs; a 17-min video took 38min).
+#   15min covers the worst foreground runtime under the 30min auto-background threshold.
 - insert:
     - id: dsh-bili-sum
       name: '@deepseek-ai/dsh-mcp-client'
@@ -14,4 +19,5 @@
         cwd: !!js "ctx.get('profileContext').dir + '/node_modules/dsh-bili-sum'"
         env:
           BILI_DATA_ROOT: !!js "ctx.get('dshHomePath')('bili-sum')"
+        toolCallTimeoutMs: 900000
         failOnStartupError: true

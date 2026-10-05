@@ -15,7 +15,7 @@ import {
 import { transcribe, extractKeyframes, analyze, analyzeOrBackground, hostDiag } from './media.js';
 import { PKG_ROOT, DATA_ROOT, OUTPUT_DIR, TOOLS_DIR } from './paths.js';
 
-const SERVER_INFO = { name: 'bilibili', version: '3.2.1' };
+const SERVER_INFO = { name: 'bilibili', version: '3.3.0' };
 const DEBUG = !!process.env.MCP_DEBUG;
 
 function log(...args) {
@@ -75,9 +75,36 @@ info 资讯：flash、wh{when,where,who,what,why,how}、data[{k,v,ts}]、timelin
 - >30min 自动后台：node scripts/analyze-status.mjs <BV>，看输出 state 字段（running|completed|failed）
 - 质量档/medium 模型等细节见插件目录 OUTPUT-STANDARDS.md §2
 
+## 过程纪律（实证教训：session-7be58aa2 违反以下各条，17 分钟视频拖到 38 分钟）
+- 禁止分析期间查进程/读脚本或渲染器源码/反复列目录/重读 bundle.json——analyze 返回什么就用什么
+- reasoning 保持精简：不逐步播报计划、不在思考里逐行复述转录、不单独开错别字校对轮；引用「」原话时内联静默校正一次完成
+- balanced/快速档不做帧级核验（帧核验是质量档 model=medium 的职责）；仅当 1-2 条关键引用在转录里明显损坏时允许 read_image 单帧核对画面文字
+- 禁止为校名/事实开 web_search——按归因照录视频所述即可
+- analyze 返回后台任务时（>30min 视频）：用 analyze-status.mjs 查 state，完成前勿反复轮询文件系统
+
 ## 交付前检查
 元信息无省略（缺失写「未提供」）｜要点条数合规｜时间戳齐全可点｜敏感三件套齐｜弹幕四类合规、无攻击性放大｜含板书/界面/演示的视频已用帧能力｜present 卡片交付（目录路径聊天里打不开）
 `;
+
+// initialize.instructions → harness 注入 systemPrompt 节（mcp:bilibili，每会话自动生效，
+// 上限 32KB）。这是「新会话配方缺失」的根治层：配方（流程+纪律）随插件连接走，
+// 不依赖 agent 主动读资源或工作区文档。只约束过程效率，不改任何输出标准。
+export const SERVER_INSTRUCTIONS = `dsh-Bili-Sum 视频图文笔记流水线。用户要 B 站视频的总结/笔记/分析（例：「平衡，总结BV…」「做一份课程笔记」）时，按以下流程执行——这是本插件存在的意义，勿自行发明方法：
+
+【标准流程】
+1) mcp__bilibili__analyze（用户说「平衡」或未指定路线=route balanced；课程/板书课加 type=lecture）→ 返回 workDir 与 brief.md；前台运行需数分钟，安静等待结果，勿中途干预
+2) 只读 workDir/brief.md 一个文件（内含元信息/关键时刻/弹幕信号/完整转录）
+3) 回显一行判型「识别为：XX模板（可说 YY 覆盖）」→ 直接写 workDir/content.json（唯一智力产出；字段全名与判型信号见 analyze 工具描述，完整手册读 MCP 资源 usage://dsh-bili-sum）
+4) node scripts/render-notes.mjs <workDir> --template digest|lecture|tutorial|share|info → present 成品
+
+【过程纪律——违反会把 3 分钟拖成 40 分钟（真实教训）】
+· 禁止分析期间查进程/读脚本源码/反复列目录/重读 bundle.json——analyze 返回什么就用什么
+· reasoning 保持精简：不逐步播报计划、不在思考里逐行复述转录、不单独开错别字校对轮；引用「」原话时内联静默校正一次完成
+· balanced/快速档不做帧级核验（那是质量档 model=medium 的职责）；仅当 1-2 条关键引用在转录里明显损坏时，允许 read_image 单帧核对画面文字
+· 禁止为校名/事实开 web_search——按归因照录视频所述即可
+· analyze 返回后台任务时（>30min 视频）：node scripts/analyze-status.mjs <BV> 查 state（running|completed|failed），完成后再读 brief.md
+
+【边界】输出标准（条数区间/硬保底/归因三件套/静默校正）以 analyze 描述与 usage 资源为准，本提示只约束过程，不改任何输出标准。用户只要纯文字稿时才用 transcribe。`;
 
 export const TOOLS = [
   {
@@ -200,6 +227,7 @@ export const TOOLS = [
       '5) present 成品 HTML。完整字段表与检查清单读 MCP 资源 usage://dsh-bili-sum。',
       '【条数口诀Q4】balanced档要点条数按视频时长：<3min≈6-14、3-10min≈8-14、10-30min≈10-16、>30min≈12-20；独立要点≥上限×1.2才可突破（独立主张+独立时间戳+同义必合并）；稀疏按实数写、缺的区块整块省略。命名按模板默认（digest=关键点/share=时间线亮点）或highlightsTitle指定。',
       '【硬保底】lecture例题steps必填完整解法；tutorial每步verify必填；info 5W1H必含；敏感争议三件套=warn阅读提示+全程归因+attribution四栏（对方立场缺失写「本视频未呈现」）。',
+      '【过程纪律】只读 brief.md 一个文件；勿查进程/读脚本源码/重读 bundle；reasoning 精简——不复述转录、不开单独校对轮、不播报步骤（引用时内联静默校正一次完成）；balanced/快速档不帧核验（质量档才核），单帧核对仅限明显损坏的关键引用；校名事实不 web_search。',
     ].join('\n'),
     inputSchema: {
       type: 'object',
@@ -220,7 +248,15 @@ export const TOOLS = [
       required: ['bvid'],
       additionalProperties: false,
     },
-    handler: async (a) => ({ text: JSON.stringify(await analyzeOrBackground(a.bvid, a), null, 2) }),
+    handler: async (a) => {
+      const r = await analyzeOrBackground(a.bvid, a);
+      // 决策点即时指令：analyze 结果是 agent 注意力最高的一刻，把「下一步」直接带上，
+      // 防止读完 brief 后自由发挥（实证：73k 字思考块跑飞）。只约束过程，不改输出标准。
+      const next = r.note
+        ? `【后台任务】稍后运行 node scripts/analyze-status.mjs ${r.bvid || a.bvid} 查看 state（running|completed|failed）；完成前勿反复轮询文件系统，完成后读 workDir/brief.md。`
+        : '【下一步】①只读 brief.md（勿读 bundle/脚本源码、勿查进程）②回显判型一行 ③写 content.json（schema=analyze 描述/usage 资源）④node scripts/render-notes.mjs <workDir> --template <判型> ⑤present。reasoning 精简：不复述转录、不开单独校对轮、不播报步骤；balanced 档不帧核验。';
+      return { text: JSON.stringify({ ...r, next }, null, 2) };
+    },
   },
   {
     name: 'status',
@@ -260,6 +296,7 @@ export async function dispatch(msg) {
         protocolVersion: typeof params?.protocolVersion === 'string' ? params.protocolVersion : '2024-11-05',
         capabilities: { tools: {}, resources: {} },
         serverInfo: SERVER_INFO,
+        instructions: SERVER_INSTRUCTIONS, // → harness systemPrompt 节（每会话自动注入流程契约）
       };
     case 'ping':
       return {};
