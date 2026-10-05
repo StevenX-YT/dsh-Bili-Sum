@@ -194,6 +194,17 @@ try {
   const rt5 = await renderNotes(dir, { noStream: true, template: 'tutorial' });
   ok((await readFile(rt5.out, 'utf8')).includes('kf_004.png'), 'tutorial 步骤截图（Q5）');
 
+  // ---- QA 答案行 F2（v3.4.3：session-5f1f92ff 实证——agent 把标签当值填 src/空 ext 渲染出空占位行）----
+  await writeFile(join(dir, 'content.json'), JSON.stringify({ ...base, out: 'qa-f2.html',
+    qa: [{ q: '错例问题', ts: '00:10', src: '视频中提到' }],
+  }));
+  const rq6 = await renderNotes(dir, { noStream: true });
+  const hq6 = await readFile(rq6.out, 'utf8');
+  ok(hq6.includes('错例问题'), 'qa 问题行渲染');
+  ok(!hq6.includes('：视频中提到<'), 'qa 标签回声不渲染占位行（F2）');
+  ok(!hq6.includes('延伸思考</span>：'), 'qa 空 ext 不渲染占位行（F2）');
+  ok(!hq6.includes('<div class="a">'), 'qa 双空时答案容器整块消失（F2）');
+
   // ---- Q6：画廊挂载点扩展 + lightbox 放大尺寸 ----
   // 说明：画廊 <details> 元素由运行时在浏览器端动态创建，服务端 HTML 不含该元素——
   // 挂载点判定已抽为纯函数 galleryAnchorAllowed（单测见 test-tsgal-v2）；

@@ -115,6 +115,11 @@ t('analyze 描述含过程纪律反模式清单（v3.4.0）', () => {
   has(A(), ['过程纪律', '不复述转录', '不播报', '不 web_search', '帧核验', '_draft-content.json', '聊天正文', 'create_goal'], 'analyze');
 });
 
+t('v3.4.3：qa 字段语义内联 + 反搜寻纪律（session-5f1f92ff 标签回声教训）', () => {
+  has(A(), ['勿拼答案', '填内容不填「视频中提到」字面标签', '无则省略字段', '为找字段形状翻 PRACTICE'], 'analyze');
+  has(USAGE_MANUAL, ['勿拼答案', '填内容不填「视频中提到」字面标签'], 'USAGE_MANUAL');
+});
+
 t('usage 手册含过程纪律节（双实证引用）', () => {
   has(USAGE_MANUAL, ['过程纪律', 'session-7be58aa2', 'session-ee6408ef', '查进程', '文件优先', '_draft-content.json', '禁止调用工具', 'create_goal', 'web_search'], 'USAGE_MANUAL');
 });

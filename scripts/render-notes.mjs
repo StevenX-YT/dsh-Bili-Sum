@@ -16,7 +16,7 @@
 //   "highlightsTitle": "关键点",        // 可选，要点区块自定义名（digest 默认「关键点」、share 默认「时间线亮点」；允许跨模板重名，Q4）
 //   "timeline": [{"ts":"00:10","text":"事件","frame":"kf_002.png"}],  // share 时间线；info 兼容 t/e 字段名；frame=行内画面缩略图（Q5，点击放大）
 //   "tags": ["#标签"],
-//   "qa": [{"q":"问题","ts":"00:00","src":"视频中提到","ext":"延伸思考"}],             // ≥3
+//   "qa": [{"q":"问题（勿把答案拼进问题）","ts":"00:00","src":"视频中提到的回答内容（填内容，禁止填「视频中提到」字面标签）","ext":"延伸思考内容（无则省略本字段）"}],  // ≥3；src/ext 为空或标签回声时渲染器自动省略该行（F2）
 //   "terms": [{"t":"术语","d":"一句话定义","ts":"00:00"}],
 //   "chapters": [{"range":"00:00–00:18","title":"章节名","text":"80–150字"}],
 //   "attribution": {"author":"…","mentioned":"…","facts":"…","other":"…","external":"…"},
@@ -421,14 +421,18 @@ export async function renderNotes(dirArg, { noStream = false, autoFrames = false
   const tags = (content.tags || []).length
     ? `  <h2>标签</h2>\n  <div class="tags">\n${content.tags.map((t) => `<span>${esc(t)}</span>`).join('')}\n  </div>`
     : '';
+  // Q&A 答案行 F2 化：空值或字面标签回声（agent 误把「视频中提到」当值填入）不渲染占位行
+  const qaRow = (label, cls, val) => {
+    const v = String(val ?? '').trim();
+    if (!v || v === label) return '';
+    return `      <p><span class="${cls}">${label}</span>：${esc(v)}</p>`;
+  };
   const qa = (content.qa || []).length
-    ? `  <h2>思考 Q&amp;A</h2>\n${content.qa.map((x) => `  <div class="qa">
-    <div class="q">Q${content.qa.indexOf(x) + 1}${tsBadge(x.ts)} ${esc(x.q)}</div>
-    <div class="a">
-      <p><span class="src">视频中提到</span>：${esc(x.src)}</p>
-      <p><span class="ext">延伸思考</span>：${esc(x.ext)}</p>
-    </div>
-  </div>`).join('\n')}`
+    ? `  <h2>思考 Q&amp;A</h2>\n${content.qa.map((x) => {
+      const rows = [qaRow('视频中提到', 'src', x.src), qaRow('延伸思考', 'ext', x.ext)].filter(Boolean).join('\n');
+      return `  <div class="qa">
+    <div class="q">Q${content.qa.indexOf(x) + 1}${tsBadge(x.ts)} ${esc(x.q)}</div>${rows ? `\n    <div class="a">\n${rows}\n    </div>` : ''}`;
+    }).join('\n  </div>\n')}\n  </div>`
     : '';
   const terms = (content.terms || []).length
     ? `  <h2>术语解释</h2>\n  <table>\n    <tr><th>术语</th><th>释义</th><th>出处</th></tr>\n${content.terms.map((t) => `    <tr><td>${esc(t.t)}</td><td>${esc(t.d)}</td><td>${tsBadge(t.ts)}</td></tr>`).join('\n')}\n  </table>`

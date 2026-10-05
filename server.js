@@ -15,7 +15,7 @@ import {
 import { transcribe, extractKeyframes, analyze, analyzeOrBackground, hostDiag } from './media.js';
 import { PKG_ROOT, DATA_ROOT, OUTPUT_DIR, TOOLS_DIR } from './paths.js';
 
-const SERVER_INFO = { name: 'bilibili', version: '3.4.2' };
+const SERVER_INFO = { name: 'bilibili', version: '3.4.3' };
 const DEBUG = !!process.env.MCP_DEBUG;
 
 function log(...args) {
@@ -49,7 +49,7 @@ B 站视频图文笔记流水线。完整规格在插件目录：PRACTICE-NOTES.
 
 ## content.json 字段（字段全名；空区块整块省略 F2，不硬凑占位）
 通用：out、attr、summary[]、highlightsTitle、frames[{file,cap}]（内容驱动默认省略）、gridNote、dm[{cat:刷屏|反驳|指引|神评,ts,text}]
-digest 讲解/评论：warn（敏感必填）、highlights[{emoji,title,ts,quote}]、thesis、chain[{role,text,ts}]（存在时替换关键点区）、tags[]、qa[{q,ts,src,ext}]、terms[{t,d,ts}]、chapters[{range,title,text}]、attribution{author,mentioned,facts,other,external}、credibility
+digest 讲解/评论：warn（敏感必填）、highlights[{emoji,title,ts,quote}]、thesis、chain[{role,text,ts}]（存在时替换关键点区）、tags[]、qa[{q,ts,src,ext}]（q=问题本身勿拼答案；src=视频中提到的回答内容——填内容不填「视频中提到」字面标签；ext=延伸思考内容，无则省略）、terms[{t,d,ts}]、chapters[{range,title,text}]、attribution{author,mentioned,facts,other,external}、credibility
 lecture 课程：course{subject,topic,level,prereq,audience}、framework[{no,name,core,ts,frame}]、knowledge[{no,name,definition,points,emphasis,usage,ts}]、examples[{no,title,question,approach,steps[],answer,pitfalls,ts}]、authorSummary[{ts,quote}]、difficulty[{point,evidence,advice}]、prereq{before[],after[]}、review[]、signals{warnings,turning,resources,memes}
 tutorial 教程：task{what,prereq,time,output}、quickPath、prereqCheck[]、steps[{no,title,op,frame,purpose,verify,tip,ts}]、errors[{raw,cause,fix,ts}]、verify[]、tools[{name,note}]
 share 分享：tldr、timeline[{ts,text,frame}]、quotes[{ts,text}]、useful[{label,value,ts}]
@@ -106,7 +106,7 @@ export const SERVER_INSTRUCTIONS = `dsh-Bili-Sum 视频图文笔记流水线。�
 【过程纪律——违反会把 3 分钟拖成 40 分钟（真实教训，均有会话实证）】
 · 文件优先：content.json 是唯一交付载体。禁止把笔记内容写进思考或聊天正文——本环境免费模型插件在输出截断时会注入「禁止调用工具」的恢复指令，聊天文本救不回成品（实证：整份笔记以纯文本泄出、零文件落盘）
 · 读完 brief 后尽快落盘：先写 content.json 初稿（可不完美），渲染报错再补；不要在思考里预写全文、逐行校对转录或规划所有条目
-· 禁止查进程/读脚本渲染器源码/反复列目录/重读 bundle；reasoning 保持精简，不逐步播报计划
+· 禁止查进程/读脚本渲染器源码/反复列目录/重读 bundle、不要为找字段形状翻 PRACTICE/OUTPUT-STANDARDS/模板（字段名与语义已全部内联于 analyze 描述与 usage 资源）；reasoning 保持精简，不逐步播报计划
 · balanced/快速档不做帧级核验（质量档才核）；禁止为校名/事实开 web_search
 · 后台任务（>30min 视频）用 analyze-status.mjs 查 state，完成前勿反复轮询文件系统
 
@@ -230,12 +230,12 @@ export const TOOLS = [
       '【标准交付流程——禁止手写HTML样板，成品必须经渲染器】',
       '1) 用返回的 workDir 读 brief.md（元信息+关键时刻+配帧+弹幕信号+完整转录），不必逐帧 read_image；',
       '2) 判型并回显「识别为：XX模板（可说YY覆盖）」。信号一行：标题含讲/课程/第X课/学科词或开场「今天这节课」=lecture；含教程/安装/配置/部署/使用=tutorial；观点句式/事件评论=digest；vlog/日常/旅行=share；速递/快讯/热点且≤5min=info；',
-      '3) 在 workDir 写 content.json（唯一智力产出）：通用 summary[]、highlights[{emoji,title,ts,quote}]、highlightsTitle、tags[]、qa[{q,ts,src,ext}]、terms[{t,d,ts}]、chapters[{range,title,text}]、attribution{author,mentioned,facts,other,external}、dm[{cat:刷屏|反驳|指引|神评,ts,text}]、frames[{file,cap}]（内容驱动默认省略）；lecture 另加 course{subject,topic,level,prereq,audience}/framework[{no,name,core,ts,frame}]/knowledge[{no,name,definition,points,emphasis,usage,ts}]/examples[{no,title,question,approach,steps[],answer,pitfalls,ts}]/authorSummary[{ts,quote}]/difficulty[{point,evidence,advice}]/prereq{before,after}/review[]/signals{warnings,turning,resources,memes}；tutorial 另加 task{what,prereq,time,output}/quickPath/prereqCheck[]/steps[{no,title,op,frame,purpose,verify,tip,ts}]/errors[{raw,cause,fix,ts}]/verify[]/tools[{name,note}]；share 另加 tldr/timeline[{ts,text,frame}]/quotes[{ts,text}]/useful[{label,value,ts}]；info 另加 flash/wh{when,where,who,what,why,how}/data[{k,v,ts}]/timeline[{ts|t,e|text,frame}]/react[{side,text}]/background；',
+      '3) 在 workDir 写 content.json（唯一智力产出）：通用 summary[]、highlights[{emoji,title,ts,quote}]、highlightsTitle、tags[]、qa[{q,ts,src,ext}]（q=问题本身勿拼答案；src=视频中提到的回答内容——填内容不填「视频中提到」字面标签；ext=延伸思考内容，无则省略字段）、terms[{t,d,ts}]、chapters[{range,title,text}]、attribution{author,mentioned,facts,other,external}、dm[{cat:刷屏|反驳|指引|神评,ts,text}]、frames[{file,cap}]（内容驱动默认省略）；lecture 另加 course{subject,topic,level,prereq,audience}/framework[{no,name,core,ts,frame}]/knowledge[{no,name,definition,points,emphasis,usage,ts}]/examples[{no,title,question,approach,steps[],answer,pitfalls,ts}]/authorSummary[{ts,quote}]/difficulty[{point,evidence,advice}]/prereq{before,after}/review[]/signals{warnings,turning,resources,memes}；tutorial 另加 task{what,prereq,time,output}/quickPath/prereqCheck[]/steps[{no,title,op,frame,purpose,verify,tip,ts}]/errors[{raw,cause,fix,ts}]/verify[]/tools[{name,note}]；share 另加 tldr/timeline[{ts,text,frame}]/quotes[{ts,text}]/useful[{label,value,ts}]；info 另加 flash/wh{when,where,who,what,why,how}/data[{k,v,ts}]/timeline[{ts|t,e|text,frame}]/react[{side,text}]/background；',
       '4) 渲染：node scripts/render-notes.mjs <workDir> --template digest|lecture|tutorial|share|info；',
       '5) present 成品 HTML。完整字段表与检查清单读 MCP 资源 usage://dsh-bili-sum。',
       '【条数口诀Q4】balanced档要点条数按视频时长：<3min≈6-14、3-10min≈8-14、10-30min≈10-16、>30min≈12-20；独立要点≥上限×1.2才可突破（独立主张+独立时间戳+同义必合并）；稀疏按实数写、缺的区块整块省略。命名按模板默认（digest=关键点/share=时间线亮点）或highlightsTitle指定。',
       '【硬保底】lecture例题steps必填完整解法；tutorial每步verify必填；info 5W1H必含；敏感争议三件套=warn阅读提示+全程归因+attribution四栏（对方立场缺失写「本视频未呈现」）。',
-      '【过程纪律】读 brief.md+_draft-content.json 两文件即可，尽快落盘 content.json 初稿再完善；禁止把笔记写进思考或聊天正文（输出截断会触发「禁止调用工具」恢复，聊天文本救不回成品）；勿查进程/读脚本源码/重读 bundle；reasoning 精简——不复述转录、不播报步骤（引用时内联静默校正一次完成）；balanced/快速档不帧核验（质量档才核）；校名事实不 web_search；>5min 视频开工先 create_goal（max_goal_rounds=4）防单轮中断杀死任务，交付后 update_goal complete。',
+      '【过程纪律】读 brief.md+_draft-content.json 两文件即可，尽快落盘 content.json 初稿再完善；禁止把笔记写进思考或聊天正文（输出截断会触发「禁止调用工具」恢复，聊天文本救不回成品）；勿查进程/读脚本源码/重读 bundle、勿为找字段形状翻 PRACTICE/OUTPUT-STANDARDS/模板（字段名与语义已内联于本描述与 usage 资源）；reasoning 精简——不复述转录、不播报步骤（引用时内联静默校正一次完成）；balanced/快速档不帧核验（质量档才核）；校名事实不 web_search；>5min 视频开工先 create_goal（max_goal_rounds=4）防单轮中断杀死任务，交付后 update_goal complete。',
     ].join('\n'),
     inputSchema: {
       type: 'object',
