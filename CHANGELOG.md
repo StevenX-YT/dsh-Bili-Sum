@@ -5,6 +5,10 @@
 > 2. **tsGal runtime**（templates/gallery-runtime.js）：组件独立版本（v1画廊→v2空降→v3小窗→v3.4字幕→v3.6去字幕），只在本文件附注，不与项目版本绑定
 > 3. **里程碑名**（三期提速/A-D期）：changelog 条目分组用，不是版本号
 
+## [3.4.5] — 2026-10-05
+
+沙箱升级重试纪律（验收会话 session-604e44b3 的观察项，用户拍板「改」）。数据根在工作区之外，窄沙箱（workspace-write 级）会拒绝 agent 写 content.json/执行渲染命令——该会话 agent 两次被拒后自行悟出「带 sandbox_permissions=danger-full-access 升级重试」并成功，但属即兴行为。现将该动作固化进 SOP 三处（instructions 过程纪律/analyze 描述/usage 手册）：被拒→升级重试一次；升级被拒→向用户说明需放开文件权限，勿反复裸重试。边界意义：「窄沙箱+审批 never」组合下升级会被自动拒绝，提前告知用户比卡死友好。回归 +1（三处标记），四套 **24+51+31+52** 全绿；装机验证三处标记在位（main=`db794a7`）。
+
 ## [3.4.4] — 2026-10-05
 
 首装工具链引导（新用户验收前最后一块真空档）。新环境首次 analyze 若缺 ffmpeg/whisper/silero（~700MB 需 setup-media.ps1 一次性安装），此前 agent 只能把原始报错转述给用户、无引导可循——现在 instructions（新增【首装工具链】段）、analyze 描述（【首装】行）、usage 手册（首装节）三处内联引导：「引导用户在插件目录执行 Set-ExecutionPolicy -Scope Process Bypass -Force; & scripts\setup-media.ps1（已装自动跳过）后重跑 analyze；勿自行下载二进制；自检 doctor.mjs」。回归 +1（三处标记锁定），四套 **23+51+31+52** 全绿；装机验证 instructions 1605ch 含首装段（main=`c8671f9`）。
