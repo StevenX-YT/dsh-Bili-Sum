@@ -1,6 +1,6 @@
 {
   "name": "dsh-bili-sum",
-  "version": "3.4.1",
+  "version": "3.4.2",
   "description": "B站视频理解流水线 DeepSeek Harness 插件：MCP 工具（元数据/弹幕/字幕/评论/转录/抽帧/一键分析）+ 五模板图文笔记渲染 + tsGal 交互层",
   "type": "module",
   "license": "Apache-2.0",

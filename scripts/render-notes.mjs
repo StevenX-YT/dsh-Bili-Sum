@@ -433,8 +433,9 @@ export async function renderNotes(dirArg, { noStream = false, autoFrames = false
   const terms = (content.terms || []).length
     ? `  <h2>术语解释</h2>\n  <table>\n    <tr><th>术语</th><th>释义</th><th>出处</th></tr>\n${content.terms.map((t) => `    <tr><td>${esc(t.t)}</td><td>${esc(t.d)}</td><td>${tsBadge(t.ts)}</td></tr>`).join('\n')}\n  </table>`
     : '';
+  // §6.8 时间锚点统一：章节区间也是时间锚点——渲染为可点 .ts 徽章（运行时 parseBadge 支持区间，点击 seek 到区间起点）
   const chapters = (content.chapters || []).length
-    ? `  <h2>章节总结</h2>\n  <div class="chaps">\n${content.chapters.map((c) => `    <p><b>${esc(c.range)} ${esc(c.title)}</b>：${esc(c.text)}</p>`).join('\n')}\n  </div>`
+    ? `  <h2>章节总结</h2>\n  <div class="chaps">\n${content.chapters.map((c) => `    <p><b>${tsBadge(c.range)} ${esc(c.title)}</b>：${esc(c.text)}</p>`).join('\n')}\n  </div>`
     : '';
   const a = content.attribution || {};
   const attrRows = [

@@ -49,6 +49,7 @@ try {
   ok(html.includes('测试视频标题') && html.includes('BVTEST00001'), '元数据来自 bundle');
   ok(html.includes('测试提示'), 'warn 区块渲染');
   ok(html.includes('原话'), '亮点渲染');
+  ok(html.includes('<span class="ts">[00:00–03:05]</span>'), '章节区间渲染为可点 .ts 徽章（§6.8 时间锚点统一）');
   ok(html.includes('<h2>关键点</h2>'), 'digest 要点区默认名=关键点（Q4 命名模板化）');
   ok(!html.includes('配图（关键帧）'), '默认不出配图区（Q9① 内容驱动）');
   ok(html.includes('第一句转录'), '转录附录渲染');
