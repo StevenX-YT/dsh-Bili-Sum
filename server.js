@@ -15,7 +15,7 @@ import {
 import { transcribe, extractKeyframes, analyze, analyzeOrBackground, hostDiag } from './media.js';
 import { PKG_ROOT, DATA_ROOT, OUTPUT_DIR, TOOLS_DIR } from './paths.js';
 
-const SERVER_INFO = { name: 'bilibili', version: '3.4.4' };
+const SERVER_INFO = { name: 'bilibili', version: '3.4.5' };
 const DEBUG = !!process.env.MCP_DEBUG;
 
 function log(...args) {
@@ -83,6 +83,7 @@ info 资讯：flash、wh{when,where,who,what,why,how}、data[{k,v,ts}]、timelin
 - balanced/快速档不做帧级核验（帧核验是质量档 model=medium 的职责）；仅当 1-2 条关键引用在转录里明显损坏时允许 read_image 单帧核对画面文字
 - 禁止为校名/事实开 web_search——按归因照录视频所述即可
 - analyze 返回后台任务时（>30min 视频）：用 analyze-status.mjs 查 state，完成前勿反复轮询文件系统
+- write/命令被沙箱拒绝时（数据根在工作区外，窄沙箱会拒写 content.json 或渲染）：带 sandbox_permissions=danger-full-access 升级重试一次；升级被拒则向用户说明需放开文件权限，勿反复裸重试
 - >5 分钟视频开工先 create_goal（max_goal_rounds=4）——单轮被截断/中断时 goal 续轮从文件现场恢复；交付后 update_goal complete
 
 ## 首装工具链（一次性）
@@ -112,6 +113,7 @@ export const SERVER_INSTRUCTIONS = `dsh-Bili-Sum 视频图文笔记流水线。�
 · 禁止查进程/读脚本渲染器源码/反复列目录/重读 bundle、不要为找字段形状翻 PRACTICE/OUTPUT-STANDARDS/模板（字段名与语义已全部内联于 analyze 描述与 usage 资源）；reasoning 保持精简，不逐步播报计划
 · balanced/快速档不做帧级核验（质量档才核）；禁止为校名/事实开 web_search
 · 后台任务（>30min 视频）用 analyze-status.mjs 查 state，完成前勿反复轮询文件系统
+· write/命令被沙箱拒绝时（数据根在工作区外，窄沙箱会拒写 content.json 或渲染）：带 sandbox_permissions=danger-full-access 升级重试一次；升级被拒则向用户说明需放开文件权限，勿反复裸重试
 
 【任务保险——防单轮中断杀死任务】视频 >5 分钟或用户要质量档时：开工先 create_goal(objective="产出 <BV号> 的<模板>图文笔记并 present 交付", max_goal_rounds=4)，交付后立刻 update_goal complete。单轮输出被截断/中断后，goal 续轮会驱动从文件现场恢复继续干，不依赖用户手动打「继续」。
 
@@ -241,7 +243,7 @@ export const TOOLS = [
       '【条数口诀Q4】balanced档要点条数按视频时长：<3min≈6-14、3-10min≈8-14、10-30min≈10-16、>30min≈12-20；独立要点≥上限×1.2才可突破（独立主张+独立时间戳+同义必合并）；稀疏按实数写、缺的区块整块省略。命名按模板默认（digest=关键点/share=时间线亮点）或highlightsTitle指定。',
       '【硬保底】lecture例题steps必填完整解法；tutorial每步verify必填；info 5W1H必含；敏感争议三件套=warn阅读提示+全程归因+attribution四栏（对方立场缺失写「本视频未呈现」）。',
       '【首装】analyze 报 ffmpeg/whisper/silero 工具链缺失 → 引导用户在插件目录一次性执行 Set-ExecutionPolicy -Scope Process Bypass -Force; & scripts\\setup-media.ps1（约700MB，已装跳过）后重跑；勿自行下载二进制。',
-      '【过程纪律】读 brief.md+_draft-content.json 两文件即可，尽快落盘 content.json 初稿再完善；禁止把笔记写进思考或聊天正文（输出截断会触发「禁止调用工具」恢复，聊天文本救不回成品）；勿查进程/读脚本源码/重读 bundle、勿为找字段形状翻 PRACTICE/OUTPUT-STANDARDS/模板（字段名与语义已内联于本描述与 usage 资源）；reasoning 精简——不复述转录、不播报步骤（引用时内联静默校正一次完成）；balanced/快速档不帧核验（质量档才核）；校名事实不 web_search；>5min 视频开工先 create_goal（max_goal_rounds=4）防单轮中断杀死任务，交付后 update_goal complete。',
+      '【过程纪律】读 brief.md+_draft-content.json 两文件即可，尽快落盘 content.json 初稿再完善；禁止把笔记写进思考或聊天正文（输出截断会触发「禁止调用工具」恢复，聊天文本救不回成品）；勿查进程/读脚本源码/重读 bundle、勿为找字段形状翻 PRACTICE/OUTPUT-STANDARDS/模板（字段名与语义已内联于本描述与 usage 资源）；write/命令被沙箱拒（数据根在工作区外）时带 sandbox_permissions=danger-full-access 升级重试一次；reasoning 精简——不复述转录、不播报步骤（引用时内联静默校正一次完成）；balanced/快速档不帧核验（质量档才核）；校名事实不 web_search；>5min 视频开工先 create_goal（max_goal_rounds=4）防单轮中断杀死任务，交付后 update_goal complete。',
     ].join('\n'),
     inputSchema: {
       type: 'object',

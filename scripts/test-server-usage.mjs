@@ -126,6 +126,12 @@ t('v3.4.4：首装工具链引导（instructions/描述/手册三处）', () => 
   has(USAGE_MANUAL, ['首装工具链', 'setup-media.ps1'], 'USAGE_MANUAL');
 });
 
+t('v3.4.5：沙箱升级重试纪律（session-604e44b3 数据根窄沙箱实证，三处）', () => {
+  has(SERVER_INSTRUCTIONS, ['sandbox_permissions=danger-full-access', '勿反复裸重试'], 'INSTRUCTIONS');
+  has(A(), ['sandbox_permissions=danger-full-access'], 'analyze');
+  has(USAGE_MANUAL, ['sandbox_permissions=danger-full-access'], 'USAGE_MANUAL');
+});
+
 t('usage 手册含过程纪律节（双实证引用）', () => {
   has(USAGE_MANUAL, ['过程纪律', 'session-7be58aa2', 'session-ee6408ef', '查进程', '文件优先', '_draft-content.json', '禁止调用工具', 'create_goal', 'web_search'], 'USAGE_MANUAL');
 });
