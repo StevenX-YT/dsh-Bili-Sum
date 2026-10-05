@@ -5,6 +5,33 @@
 > 2. **tsGal runtime**（templates/gallery-runtime.js）：组件独立版本（v1画廊→v2空降→v3小窗→v3.4字幕→v3.6去字幕），只在本文件附注，不与项目版本绑定
 > 3. **里程碑名**（三期提速/A-D期）：changelog 条目分组用，不是版本号
 
+## [3.4.0] — 2026-10-05
+
+新会话流畅性第二轮（「让新用户流畅使用插件」专项续；v3.3.0 之后的验收会话 `session-ee6408ef` 仍失败，本轮按新证据根治）。**用户拍板**：web_search 校名保持全禁。
+
+**session-ee6408ef 法证（解码 67 帧→482KB）——v3.3.0 修复确实生效了，但暴露了更深一层的根因：**
+- ✅ 超时修复生效：analyze 125s 完整跑完未被掐断；instructions 已注入系统提示词（system/message 实证含全文）；agent 入口全对（video-info+analyze 并行、读 brief）
+- ❌ **真根因**：模型配置为 `mimo-v2.5-free + reasoningEffort=deep + maxTokens=32768`——deep 推理把「从零创作整份笔记」的规划（16 个要点的精确引文+校对）全部塞进单轮思考，45k 字符思考打满 32k 输出上限、还没发出 write 调用流就被截断
+- ❌ **恢复陷阱**：`dsh-our-free-model/src/recovery.js` 检测到「有推理无文本无工具调用的无终帧流」→ 注入恢复指令 **"Do not call tools… ≤800 words"**（该策略为问答场景设计）→ 模型被迫把已规划好的整份笔记以聊天文本泄出（1.7k 字符）→ **content.json/render/present 全部未执行、文件零落盘**；用户随后的「给会话坐标」问题让任务彻底脱轨
+- 对照：v3.3.0 的反模式纪律全部守住了（无查进程/无读源码/无 web_search/无帧核验）——纪律层已修好，死的是「输出预算×恢复陷阱」这一层
+
+### Added
+- **`_draft-content.json` 机器草稿（media.js `buildDraftContent` 纯函数）**：analyze 在服务器侧把素材级机械工作先做成底稿——关键时刻→要点候选（带就近转录行/时间戳）、锚点切章节草稿、弹幕候选合并；agent 的任务从「从零创作」降级为「校正+筛选+补全」，思考量大幅下降，工具调用得以在输出预算内发出。纪律：renderer 不读取草稿；最终 content.json 仍由 agent 全责撰写；**输出标准不变**
+- **SOP 三道保险（instructions/analyze 描述/usage 手册/next 字段同步）**：
+  1. **文件优先**：content.json 是唯一交付载体，禁止把笔记写进思考或聊天正文（点名恢复陷阱机制）
+  2. **尽快落盘**：读完 brief+草稿立即写初稿再完善，不在思考里预写全文
+  3. **goal 保险**：>5min 视频开工先 `create_goal(max_goal_rounds=4)`——goal-round-driver 在 agent 空闲且 goal 未完成时自动排续轮（源码实证：`renderGoalRoundPrompt`「Continue working toward the objective…inspect workspace」），单轮被截断后自动从文件现场恢复，不依赖用户手打「继续」；交付后 update_goal complete
+
+### 验证
+- 四套回归全绿：server-usage **21**（+v3.4.0 标记）+ media **51**（+buildDraftContent 8 项）+ tsGal **31** + render **47**
+- 装机副本冒烟：v3.4.0 / instructions 1267ch 四标记齐（draft/fileFirst/recovery/goal）/ buildDraftContent 装机可调用
+- 备份：v3.3.0 装机副本快照 `~\.dsh\bili-sum\backups\dsh-bili-sum-v3.3.0-20261005-profile`（55 文件）；GitHub 基线 a75ecf1
+
+### 备查
+- 恢复陷阱证据链：`dsh-our-free-model/src/recovery.js` `canRecover()`（sawFinish≠true ∧ sawReasoning ∧ ¬sawText ∧ ¬sawToolCall）+ `recoveryMessages()`（"Do not call tools"）
+- goal 续轮证据链：`@deepseek-ai/dsh-goal-round-driver/lib/index.js` `renderGoalRoundPrompt()`；README.zh.md「当活跃 agent idle 且存在 active、已启用续行、仍有容量的 goal 时排入 goal-round」
+- mimo 配置证据：session request/header `{"provider":"our-free-model","model":"mimo-v2.5-free","reasoningEffort":"deep","maxTokens":32768}`
+
 ## [3.3.0] — 2026-10-05
 
 新会话流畅性轮（「让新用户流畅使用插件」专项；v3.2.1 配方可见性之后的第二层修复）。**实证驱动**：解剖问题会话 `session-7be58aa2`（新会话「平衡，总结BV…」，16:39 视频跑了 38.5 分钟、119k 输出 token），根因三条全部坐实——

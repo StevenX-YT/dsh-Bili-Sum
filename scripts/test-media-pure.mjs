@@ -2,7 +2,7 @@
 // 用法：node scripts/test-media-pure.mjs
 // 背景：2026-10-03 实战抓到 analyze 引用未定义变量（语法检查查不出、运行才炸），
 // 本测试锁定纯函数行为，防参数重构再引入同类回归。
-import { durToSec, pageDurationSec, shouldUseDual, parseWhisperSegments, findKeyMoments, LECTURE_PROMPT } from '../media.js';
+import { durToSec, pageDurationSec, shouldUseDual, parseWhisperSegments, findKeyMoments, buildDraftContent, LECTURE_PROMPT } from '../media.js';
 import { toSimplified } from '../zh-conv.js';
 
 let pass = 0, fail = 0;
@@ -79,6 +79,26 @@ ok(Array.isArray(kmG), 'general不报错');
 
 console.log('== LECTURE_PROMPT ==');
 ok(typeof LECTURE_PROMPT === 'string' && LECTURE_PROMPT.length > 50, '课程偏置词表非空');
+
+console.log('== buildDraftContent（v3.4.0 机器草稿）==');
+const draftSegs = [
+  { from: 0, to: 5, text: '开场白' },
+  { from: 30, to: 36, text: '我们先看定义' },
+  { from: 95, to: 100, text: '接下来看例题' },
+];
+const draftKm = [{ timeSec: 30, reason: '关键词', text: '我们先看定义' }, { timeSec: 95, reason: '关键词', text: '接下来看例题' }];
+const draftDm = { comprehension: [{ t: 32, text: '懂了' }], sample: [{ t: 3, text: '来了' }] };
+const draft = buildDraftContent(draftSegs, draftKm, draftDm);
+ok(draft && typeof draft._note === 'string' && draft._note.includes('机器草稿'), '带草稿说明头');
+ok(Array.isArray(draft.highlights) && draft.highlights.length === 2, '要点候选=关键时刻数');
+ok(draft.highlights[0].ts === '00:30' && draft.highlights[0].quote === '我们先看定义', '候选带 ts 与就近转录行');
+ok(Array.isArray(draft.chapters) && draft.chapters.length === 2, '章节按锚点切段');
+ok(draft.chapters[0].range.includes('00:30') && draft.chapters[1].range.includes('01:35'), '章节区间正确');
+ok(Array.isArray(draft.dm) && draft.dm.length === 2, '弹幕候选合并两池');
+const draftEmpty = buildDraftContent([], [], null);
+ok(draftEmpty.highlights.length === 0 && draftEmpty.chapters.length === 0 && draftEmpty.dm.length === 0, '空输入零候选不报错');
+const draftNoKm = buildDraftContent(draftSegs, [], null);
+ok(draftNoKm.chapters.length >= 1, '无锚点回退均分切章');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

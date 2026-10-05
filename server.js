@@ -15,7 +15,7 @@ import {
 import { transcribe, extractKeyframes, analyze, analyzeOrBackground, hostDiag } from './media.js';
 import { PKG_ROOT, DATA_ROOT, OUTPUT_DIR, TOOLS_DIR } from './paths.js';
 
-const SERVER_INFO = { name: 'bilibili', version: '3.3.0' };
+const SERVER_INFO = { name: 'bilibili', version: '3.4.0' };
 const DEBUG = !!process.env.MCP_DEBUG;
 
 function log(...args) {
@@ -75,12 +75,15 @@ info 资讯：flash、wh{when,where,who,what,why,how}、data[{k,v,ts}]、timelin
 - >30min 自动后台：node scripts/analyze-status.mjs <BV>，看输出 state 字段（running|completed|failed）
 - 质量档/medium 模型等细节见插件目录 OUTPUT-STANDARDS.md §2
 
-## 过程纪律（实证教训：session-7be58aa2 违反以下各条，17 分钟视频拖到 38 分钟）
+## 过程纪律（实证教训：session-7be58aa2 违反以下各条，17 分钟视频拖到 38 分钟；session-ee6408ef 触发恢复陷阱，成品零落盘）
+- 文件优先：content.json 是唯一交付载体；禁止把笔记内容写进思考或聊天正文（输出截断会触发「禁止调用工具」恢复，聊天文本救不回成品）
+- 读完 brief.md + _draft-content.json（analyze 生成的机器草稿）后尽快落盘 content.json 初稿再完善；不要在思考里预写全文或逐行校对转录
 - 禁止分析期间查进程/读脚本或渲染器源码/反复列目录/重读 bundle.json——analyze 返回什么就用什么
-- reasoning 保持精简：不逐步播报计划、不在思考里逐行复述转录、不单独开错别字校对轮；引用「」原话时内联静默校正一次完成
+- reasoning 保持精简：不逐步播报计划、不复述转录；引用「」原话时内联静默校正一次完成
 - balanced/快速档不做帧级核验（帧核验是质量档 model=medium 的职责）；仅当 1-2 条关键引用在转录里明显损坏时允许 read_image 单帧核对画面文字
 - 禁止为校名/事实开 web_search——按归因照录视频所述即可
 - analyze 返回后台任务时（>30min 视频）：用 analyze-status.mjs 查 state，完成前勿反复轮询文件系统
+- >5 分钟视频开工先 create_goal（max_goal_rounds=4）——单轮被截断/中断时 goal 续轮从文件现场恢复；交付后 update_goal complete
 
 ## 交付前检查
 元信息无省略（缺失写「未提供」）｜要点条数合规｜时间戳齐全可点｜敏感三件套齐｜弹幕四类合规、无攻击性放大｜含板书/界面/演示的视频已用帧能力｜present 卡片交付（目录路径聊天里打不开）
@@ -89,20 +92,25 @@ info 资讯：flash、wh{when,where,who,what,why,how}、data[{k,v,ts}]、timelin
 // initialize.instructions → harness 注入 systemPrompt 节（mcp:bilibili，每会话自动生效，
 // 上限 32KB）。这是「新会话配方缺失」的根治层：配方（流程+纪律）随插件连接走，
 // 不依赖 agent 主动读资源或工作区文档。只约束过程效率，不改任何输出标准。
+// v3.4.0：文件优先/恢复陷阱警示/goal 保险/_draft-content.json 草稿流——
+// session-ee6408ef 实证：deep 推理把全文规划塞进单轮思考打满 32k 输出上限 →
+// our-free-model 插件注入「禁止调用工具」恢复指令 → 笔记以聊天文本泄出、文件零落盘。
 export const SERVER_INSTRUCTIONS = `dsh-Bili-Sum 视频图文笔记流水线。用户要 B 站视频的总结/笔记/分析（例：「平衡，总结BV…」「做一份课程笔记」）时，按以下流程执行——这是本插件存在的意义，勿自行发明方法：
 
 【标准流程】
-1) mcp__bilibili__analyze（用户说「平衡」或未指定路线=route balanced；课程/板书课加 type=lecture）→ 返回 workDir 与 brief.md；前台运行需数分钟，安静等待结果，勿中途干预
-2) 只读 workDir/brief.md 一个文件（内含元信息/关键时刻/弹幕信号/完整转录）
-3) 回显一行判型「识别为：XX模板（可说 YY 覆盖）」→ 直接写 workDir/content.json（唯一智力产出；字段全名与判型信号见 analyze 工具描述，完整手册读 MCP 资源 usage://dsh-bili-sum）
+1) mcp__bilibili__analyze（用户说「平衡」或未指定路线=route balanced；课程/板书课加 type=lecture）→ 返回 workDir、brief.md 与 _draft-content.json（机器草稿）；前台运行需数分钟，安静等待，勿中途干预
+2) 读 workDir/brief.md + _draft-content.json 两个文件即可（素材与候选草稿都在；勿读 bundle/脚本源码、勿查进程）
+3) 回显一行判型「识别为：XX模板（可说 YY 覆盖）」→ 以草稿为底写 workDir/content.json：校正同音字、筛选合并（草稿候选可超量，成稿按条数口诀收口）、补全 qa/terms/attribution 等缺失字段。schema 见 analyze 描述或资源 usage://dsh-bili-sum
 4) node scripts/render-notes.mjs <workDir> --template digest|lecture|tutorial|share|info → present 成品
 
-【过程纪律——违反会把 3 分钟拖成 40 分钟（真实教训）】
-· 禁止分析期间查进程/读脚本源码/反复列目录/重读 bundle.json——analyze 返回什么就用什么
-· reasoning 保持精简：不逐步播报计划、不在思考里逐行复述转录、不单独开错别字校对轮；引用「」原话时内联静默校正一次完成
-· balanced/快速档不做帧级核验（那是质量档 model=medium 的职责）；仅当 1-2 条关键引用在转录里明显损坏时，允许 read_image 单帧核对画面文字
-· 禁止为校名/事实开 web_search——按归因照录视频所述即可
-· analyze 返回后台任务时（>30min 视频）：node scripts/analyze-status.mjs <BV> 查 state（running|completed|failed），完成后再读 brief.md
+【过程纪律——违反会把 3 分钟拖成 40 分钟（真实教训，均有会话实证）】
+· 文件优先：content.json 是唯一交付载体。禁止把笔记内容写进思考或聊天正文——本环境免费模型插件在输出截断时会注入「禁止调用工具」的恢复指令，聊天文本救不回成品（实证：整份笔记以纯文本泄出、零文件落盘）
+· 读完 brief 后尽快落盘：先写 content.json 初稿（可不完美），渲染报错再补；不要在思考里预写全文、逐行校对转录或规划所有条目
+· 禁止查进程/读脚本渲染器源码/反复列目录/重读 bundle；reasoning 保持精简，不逐步播报计划
+· balanced/快速档不做帧级核验（质量档才核）；禁止为校名/事实开 web_search
+· 后台任务（>30min 视频）用 analyze-status.mjs 查 state，完成前勿反复轮询文件系统
+
+【任务保险——防单轮中断杀死任务】视频 >5 分钟或用户要质量档时：开工先 create_goal(objective="产出 <BV号> 的<模板>图文笔记并 present 交付", max_goal_rounds=4)，交付后立刻 update_goal complete。单轮输出被截断/中断后，goal 续轮会驱动从文件现场恢复继续干，不依赖用户手动打「继续」。
 
 【边界】输出标准（条数区间/硬保底/归因三件套/静默校正）以 analyze 描述与 usage 资源为准，本提示只约束过程，不改任何输出标准。用户只要纯文字稿时才用 transcribe。`;
 
@@ -227,7 +235,7 @@ export const TOOLS = [
       '5) present 成品 HTML。完整字段表与检查清单读 MCP 资源 usage://dsh-bili-sum。',
       '【条数口诀Q4】balanced档要点条数按视频时长：<3min≈6-14、3-10min≈8-14、10-30min≈10-16、>30min≈12-20；独立要点≥上限×1.2才可突破（独立主张+独立时间戳+同义必合并）；稀疏按实数写、缺的区块整块省略。命名按模板默认（digest=关键点/share=时间线亮点）或highlightsTitle指定。',
       '【硬保底】lecture例题steps必填完整解法；tutorial每步verify必填；info 5W1H必含；敏感争议三件套=warn阅读提示+全程归因+attribution四栏（对方立场缺失写「本视频未呈现」）。',
-      '【过程纪律】只读 brief.md 一个文件；勿查进程/读脚本源码/重读 bundle；reasoning 精简——不复述转录、不开单独校对轮、不播报步骤（引用时内联静默校正一次完成）；balanced/快速档不帧核验（质量档才核），单帧核对仅限明显损坏的关键引用；校名事实不 web_search。',
+      '【过程纪律】读 brief.md+_draft-content.json 两文件即可，尽快落盘 content.json 初稿再完善；禁止把笔记写进思考或聊天正文（输出截断会触发「禁止调用工具」恢复，聊天文本救不回成品）；勿查进程/读脚本源码/重读 bundle；reasoning 精简——不复述转录、不播报步骤（引用时内联静默校正一次完成）；balanced/快速档不帧核验（质量档才核）；校名事实不 web_search；>5min 视频开工先 create_goal（max_goal_rounds=4）防单轮中断杀死任务，交付后 update_goal complete。',
     ].join('\n'),
     inputSchema: {
       type: 'object',
@@ -253,8 +261,8 @@ export const TOOLS = [
       // 决策点即时指令：analyze 结果是 agent 注意力最高的一刻，把「下一步」直接带上，
       // 防止读完 brief 后自由发挥（实证：73k 字思考块跑飞）。只约束过程，不改输出标准。
       const next = r.note
-        ? `【后台任务】稍后运行 node scripts/analyze-status.mjs ${r.bvid || a.bvid} 查看 state（running|completed|failed）；完成前勿反复轮询文件系统，完成后读 workDir/brief.md。`
-        : '【下一步】①只读 brief.md（勿读 bundle/脚本源码、勿查进程）②回显判型一行 ③写 content.json（schema=analyze 描述/usage 资源）④node scripts/render-notes.mjs <workDir> --template <判型> ⑤present。reasoning 精简：不复述转录、不开单独校对轮、不播报步骤；balanced 档不帧核验。';
+        ? `【后台任务】稍后运行 node scripts/analyze-status.mjs ${r.bvid || a.bvid} 查看 state（running|completed|failed）；完成前勿反复轮询文件系统，完成后读 workDir/brief.md + _draft-content.json。`
+        : '【下一步】①读 brief.md+_draft-content.json ②回显判型一行 ③以草稿为底写 content.json（校正同音字/筛选合并/补全字段；先落盘初稿再完善，禁止写进思考或聊天正文——输出截断会触发「禁止调用工具」恢复）④node scripts/render-notes.mjs <workDir> --template <判型> ⑤present ⑥>5min 视频交付后 update_goal complete（开工已建 goal 的话）。';
       return { text: JSON.stringify({ ...r, next }, null, 2) };
     },
   },

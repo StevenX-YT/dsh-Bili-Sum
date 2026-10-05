@@ -917,6 +917,48 @@ export function findKeyMoments(segs, { type = 'general' } = {}) {
   return moments;
 }
 
+// ---------- content.json 机器草稿（v3.4.0，纯函数可单测） ----------
+// 动机（session-ee6408ef 实证）：deep 推理模型会把「从零创作整份笔记」的规划全部塞进单轮
+// 思考，打满输出 token 上限（32k）后被 our-free-model 插件判定为「中断」，注入
+// 「禁止调用工具」恢复指令——成品只能以聊天文本泄出、文件零落盘。把素材级机械工作
+// （候选要点/章节切分/弹幕候选）在服务器侧先做成草稿，agent 的任务从「创作」降级为
+// 「校正+筛选+补全」，思考量大幅下降，工具调用得以在预算内发出。
+// 纪律：_draft-content.json 是底稿不是成品；renderer 不读取；最终 content.json 仍由
+// agent 全责撰写，输出标准（条数/硬保底/归因/静默校正）不变。
+export function buildDraftContent(segs = [], keyMoments = [], danmakuSignals = null) {
+  const lineAt = (sec) => {
+    let best = null;
+    for (const s of segs) if (s.from <= sec + 2 && (!best || s.from > best.from)) best = s;
+    return (best || {}).text || (segs[0] || {}).text || '';
+  };
+  const highlights = keyMoments.slice(0, 20).map((m) => ({
+    emoji: '•',
+    title: String(m.text || '').slice(0, 18),
+    ts: fmtTs(m.timeSec),
+    quote: String(lineAt(m.timeSec) || m.text || '').slice(0, 60),
+  }));
+  // 章节草稿：关键时刻锚点切段（无锚点则 ~90s 均分）；text 留占位提示由 agent 改写
+  const dur = segs.length ? Number(segs[segs.length - 1].to) || 0 : 0;
+  const anchors = keyMoments.map((m) => Number(m.timeSec) || 0);
+  const cuts = anchors.length ? anchors : (dur ? Array.from({ length: Math.max(1, Math.ceil(dur / 90)) }, (_, i) => Math.round(i * dur / Math.max(1, Math.ceil(dur / 90)))) : []);
+  const chapters = cuts.map((start, i) => {
+    const end = i + 1 < cuts.length ? cuts[i + 1] : dur;
+    return {
+      range: `${fmtTs(start)}–${fmtTs(end)}`,
+      title: String(lineAt(start) || '').slice(0, 20) || `第${i + 1}段`,
+      text: '（草稿占位：请按 brief.md 改写为 80–150 字本段总结）',
+    };
+  });
+  const dm = [
+    ...((danmakuSignals?.comprehension) || []).slice(0, 10),
+    ...((danmakuSignals?.sample) || []).slice(0, 10),
+  ].map((d) => ({ cat: '', ts: fmtTs(d.t), text: String(d.text || '') }));
+  return {
+    _note: '机器草稿（analyze 生成；renderer 不读取）。agent 任务：以此为底校正同音字、筛选合并、补全 qa/terms/attribution 等字段后写 content.json。草稿候选可超量；成稿条数按 Q4 时长档区间收口。',
+    highlights, chapters, dm,
+  };
+}
+
 // 一键编排：媒体下载 → 转录 → 转录驱动抽帧 → 弹幕信号 → bundle.json
 // route: 'balanced'（默认，自适应全片比对抽帧）| 'fast'（转录驱动定点快取，帧上限 12，快 40~55%）
 export async function analyze(input, { type = 'general', page, lang = 'zh', model = '', prompt = '', maxFrames = 20, keepMedia = false, route = 'balanced', vad, dual } = {}) {
@@ -1060,6 +1102,11 @@ export async function analyze(input, { type = 'general', page, lang = 'zh', mode
   ].join('\n');
   await writeFile(join(workDir, 'brief.md'), brief, 'utf8');
 
+  // 机器草稿（v3.4.0）：素材级底稿，降低 agent 从零创作的思考量；失败不影响主流程
+  try {
+    await writeFile(join(workDir, '_draft-content.json'), JSON.stringify(buildDraftContent(segs, paired, bundle.danmakuSignals), null, 2), 'utf8');
+  } catch { /* 草稿生成失败不阻塞 */ }
+
   if (!keepMedia) {
     await rm(media.wavPath, { force: true }).catch(() => {});
     if (media.audioPath && media.audioPath !== media.videoPath) await rm(media.audioPath, { force: true }).catch(() => {});
@@ -1073,6 +1120,6 @@ export async function analyze(input, { type = 'general', page, lang = 'zh', mode
     vad: !!w.vad, whisperElapsedSec: w.whisperElapsedSec,
     elapsedSec: Math.round((Date.now() - t0) / 1000),
     topMoments: paired.slice(0, 12).map((m) => ({ t: fmtTs(m.timeSec), reason: m.reason, text: m.text, frame: m.nearestFrame?.time || null })),
-    files: { bundle: join(workDir, 'bundle.json'), transcriptTxt: join(workDir, 'transcript.txt'), brief: join(workDir, 'brief.md'), workDir },
+    files: { bundle: join(workDir, 'bundle.json'), transcriptTxt: join(workDir, 'transcript.txt'), brief: join(workDir, 'brief.md'), draft: join(workDir, '_draft-content.json'), workDir },
   };
 }

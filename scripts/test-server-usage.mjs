@@ -98,8 +98,12 @@ await ta('initialize 响应含 instructions 字段（systemPrompt 注入通道�
 
 t('SERVER_INSTRUCTIONS 含流程+过程纪律+边界三段', () => {
   has(SERVER_INSTRUCTIONS, ['标准流程', 'analyze', 'brief.md', 'content.json', 'render-notes.mjs', 'present'], 'INSTRUCTIONS');
-  has(SERVER_INSTRUCTIONS, ['过程纪律', '查进程', '播报', '复述转录', '错别字', 'web_search', '帧级核验', 'analyze-status'], 'INSTRUCTIONS');
+  has(SERVER_INSTRUCTIONS, ['过程纪律', '查进程', '播报', 'web_search', '帧级核验', 'analyze-status'], 'INSTRUCTIONS');
   has(SERVER_INSTRUCTIONS, ['不改任何输出标准', 'usage://dsh-bili-sum'], 'INSTRUCTIONS');
+});
+
+t('SERVER_INSTRUCTIONS 含 v3.4.0 文件优先/恢复陷阱/goal 保险/草稿流', () => {
+  has(SERVER_INSTRUCTIONS, ['文件优先', '_draft-content.json', '禁止调用工具', 'create_goal', 'update_goal'], 'INSTRUCTIONS');
 });
 
 t('SERVER_INSTRUCTIONS 保持精简（<6000 字符，32KB 字节预算内）', () => {
@@ -107,12 +111,12 @@ t('SERVER_INSTRUCTIONS 保持精简（<6000 字符，32KB 字节预算内）', (
   assert.ok(Buffer.byteLength(SERVER_INSTRUCTIONS, 'utf8') < 12000, 'UTF-8 字节数超预算');
 });
 
-t('analyze 描述含过程纪律反模式清单', () => {
-  has(A(), ['过程纪律', '不复述转录', '不播报', '不 web_search', '帧核验'], 'analyze');
+t('analyze 描述含过程纪律反模式清单（v3.4.0）', () => {
+  has(A(), ['过程纪律', '不复述转录', '不播报', '不 web_search', '帧核验', '_draft-content.json', '聊天正文', 'create_goal'], 'analyze');
 });
 
-t('usage 手册含过程纪律节（实证教训引用）', () => {
-  has(USAGE_MANUAL, ['过程纪律', 'session-7be58aa2', '查进程', '错别字校对轮', 'web_search'], 'USAGE_MANUAL');
+t('usage 手册含过程纪律节（双实证引用）', () => {
+  has(USAGE_MANUAL, ['过程纪律', 'session-7be58aa2', 'session-ee6408ef', '查进程', '文件优先', '_draft-content.json', '禁止调用工具', 'create_goal', 'web_search'], 'USAGE_MANUAL');
 });
 
 t('cordis.patch.yml 配置 toolCallTimeoutMs=900000（默认60s会掐断analyze）', () => {
